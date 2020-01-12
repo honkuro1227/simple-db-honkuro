@@ -23,16 +23,16 @@ public class Catalog {
      * Creates a new, empty catalog.
      */
     private ConcurrentHashMap<String,DbFile> DBfileandname;
-    //private ConcurrentHashMap<String,DbFile> DBfileandFID;
     private ConcurrentHashMap<Integer,DbFile> DBfileandID;
     private ConcurrentHashMap<Integer,String> FIDandID;
+    private ConcurrentHashMap<Integer,String> IDandname;
 
     public Catalog() {
         // some code goes here
         DBfileandname=new ConcurrentHashMap<>();
-        //DBfileandFID=new ConcurrentHashMap<>();
         DBfileandID=new ConcurrentHashMap<>();
         FIDandID=new ConcurrentHashMap<>();
+        IDandname=new ConcurrentHashMap<>();
     }
 
     /**
@@ -52,6 +52,7 @@ public class Catalog {
         DBfileandname.put(name,file);
         DBfileandID.put(file.getId(),file);
         FIDandID.put(file.getId(),pkeyField);
+        IDandname.put(file.getId(),name);
     }
 
     public void addTable(DbFile file, String name) {
@@ -127,7 +128,7 @@ public class Catalog {
 
     public String getTableName(int id) {
         // some code goes here
-        return null;
+        return  IDandname.get(id);
     }
     
     /** Delete all tables from the catalog */
@@ -136,6 +137,7 @@ public class Catalog {
         DBfileandname.clear();
         FIDandID.clear();
         DBfileandID.clear();
+        IDandname.clear();
     }
     
     /**

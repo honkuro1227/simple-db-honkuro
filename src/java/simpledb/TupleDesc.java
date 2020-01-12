@@ -1,6 +1,7 @@
 package simpledb;
 
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -105,6 +106,9 @@ public class TupleDesc implements Serializable {
      */
     public String getFieldName(int i) throws NoSuchElementException {
         // some code goes here
+        if (i>=items.length||i<0){
+            throw new NoSuchElementException();
+        }
         return items[i].toString();
     }
 
@@ -120,6 +124,9 @@ public class TupleDesc implements Serializable {
      */
     public Type getFieldType(int i) throws NoSuchElementException {
         // some code goes here
+        if (i>=items.length||i<0){
+            throw new NoSuchElementException();
+        }
         return items[i].fieldType;
     }
 
@@ -198,6 +205,16 @@ public class TupleDesc implements Serializable {
 
     public boolean equals(Object o) {
         // some code goes here
+        if(o.getClass()==this.getClass()){
+            TupleDesc tp=(TupleDesc) o;
+            if (tp.numFields()==tp.numFields()){
+                if(Arrays.equals(tp.items,this.items)){
+                    return true;
+                }
+            }
+
+        }
+
         return false;
     }
 
