@@ -265,7 +265,10 @@ java.io.IOException
 simpledb.IntField
 java.lang.Integer
 ||:simpledb.TupleDesc$TDItem
+<<<<<<< HEAD
 java.util.Objects
+=======
+>>>>>>> d029bccd2a120313503ccd4d2a47942c088774cb
 java.lang.StringBuilder
 java.lang.Object
 simpledb.TupleDesc

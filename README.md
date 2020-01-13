@@ -695,3 +695,4 @@ If any of these commands fail, we'll be unhappy, and, therefore, so will your gr
 An additional 15% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
 
 We've had a lot of fun designing this assignment, and we hope you enjoy hacking on it!
+# CSE444

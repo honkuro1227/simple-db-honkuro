@@ -221,7 +221,6 @@ public class TupleDesc implements Serializable {
             TupleDesc tp=(TupleDesc) o;
             return Arrays.equals(tp.items,this.items);
         }
-
     }
 
     public int hashCode() {
