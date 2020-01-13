@@ -22,16 +22,33 @@ public class Catalog {
      * Constructor.
      * Creates a new, empty catalog.
      */
-    private ConcurrentHashMap<String,DbFile> DBfileandname;
-    private ConcurrentHashMap<Integer,DbFile> DBfileandID;
-    private ConcurrentHashMap<Integer,String> FIDandID;
-    private ConcurrentHashMap<Integer,String> IDandname;
+    private ConcurrentHashMap<Integer,DBfileattributes> DBfileandID;
+    private ConcurrentHashMap<String,Integer> IDandname;
 
+    private class DBfileattributes{
+            private DbFile file;
+            private String name;
+            private String primarykey;
+            DBfileattributes(DbFile files,String name,String primarykey){
+                this.file=files;
+                this.name=name;
+                this.primarykey=primarykey;
+            }
+            public DbFile getFile(){
+                return this.file;
+            }
+            public String getName(){
+                return this.name;
+            }
+            public  String getPrimarykey(){
+                return this.primarykey;
+            }
+
+
+    }
     public Catalog() {
         // some code goes here
-        DBfileandname=new ConcurrentHashMap<>();
         DBfileandID=new ConcurrentHashMap<>();
-        FIDandID=new ConcurrentHashMap<>();
         IDandname=new ConcurrentHashMap<>();
     }
 
@@ -46,13 +63,14 @@ public class Catalog {
      */
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
-        if(DBfileandname.containsKey(name)){
-            DBfileandname.remove(name,DBfileandname.get(name));
+        int id=file.getId();
+        if(DBfileandID.containsKey(id)){
+            DBfileandID.remove(id,DBfileandID.get(id));
+            IDandname.remove(name,id);
         }
-        DBfileandname.put(name,file);
-        DBfileandID.put(file.getId(),file);
-        FIDandID.put(file.getId(),pkeyField);
-        IDandname.put(file.getId(),name);
+        DBfileattributes tp=new DBfileattributes(file,name,pkeyField);
+        DBfileandID.put(file.getId(),tp);
+        IDandname.put(name,id);
     }
 
     public void addTable(DbFile file, String name) {
@@ -76,11 +94,11 @@ public class Catalog {
      */
     public int getTableId(String name) throws NoSuchElementException {
         // some code goes here
-        if(!DBfileandname.containsKey(name)){
-            throw new NoSuchElementException();
+        if(IDandname.containsKey(name)){
+            return IDandname.get(name);
         }
-        DbFile result= DBfileandname.get(name);
-        return result.getId();
+        throw new NoSuchElementException();
+
     }
 
     /**
@@ -91,11 +109,12 @@ public class Catalog {
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
         // some code goes here
-        if(!DBfileandID.containsKey(tableid)){
-            throw new NoSuchElementException();
+        if(DBfileandID.containsKey(tableid)){
+            TupleDesc result=DBfileandID.get(tableid).getFile().getTupleDesc();
+            return result;
         }
-        TupleDesc result=DBfileandID.get(tableid).getTupleDesc();
-        return result;
+        throw new NoSuchElementException();
+
     }
 
     /**
@@ -106,36 +125,36 @@ public class Catalog {
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
         // some code goes here
-        if(!DBfileandID.containsKey(tableid)){
-            throw new NoSuchElementException();
+        if(DBfileandID.containsKey(tableid)){
+            return DBfileandID.get(tableid).getFile();
         }
-        return DBfileandID.get(tableid);
+        throw new NoSuchElementException();
+
     }
 
     public String getPrimaryKey(int tableid) {
         // some code goes here
 
-        if(!FIDandID.containsKey(tableid)){
-            throw new NoSuchElementException();
+        if(DBfileandID.containsKey(tableid)){
+            return DBfileandID.get(tableid).getPrimarykey();
         }
-        return FIDandID.get(tableid);
+        throw new NoSuchElementException();
     }
 
     public Iterator<Integer> tableIdIterator() {
         // some code goes here
-        return FIDandID.keys().asIterator();
+        return DBfileandID.keySet().iterator();
     }
 
     public String getTableName(int id) {
         // some code goes here
-        return  IDandname.get(id);
+        return  DBfileandID.get(id).getName();
     }
     
     /** Delete all tables from the catalog */
     public void clear() {
         // some code goes here
-        DBfileandname.clear();
-        FIDandID.clear();
+
         DBfileandID.clear();
         IDandname.clear();
     }
