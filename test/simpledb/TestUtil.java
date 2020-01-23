@@ -69,7 +69,7 @@ public class TestUtil {
                 Field f;
                 Object t = tupdata[i++];
                 if (t instanceof String)
-                    f = new StringField((String)t, Type.STRING_LEN); 
+                    f = new StringField((String)t, Type.STRING_LEN);
                 else
                     f = new IntField((Integer)t);
 
@@ -153,7 +153,7 @@ public class TestUtil {
      * Verifies that the OpIterator has been exhausted of all elements.
      */
     public static boolean checkExhausted(OpIterator it)
-        throws TransactionAbortedException, DbException {
+            throws TransactionAbortedException, DbException {
 
         if (it.hasNext()) return false;
 
@@ -177,7 +177,7 @@ public class TestUtil {
         int offset = 0;
         int count = 0;
         while (offset < buf.length
-               && (count = is.read(buf, offset, buf.length - offset)) >= 0) {
+                && (count = is.read(buf, offset, buf.length - offset)) >= 0) {
             offset += count;
         }
 
@@ -215,12 +215,12 @@ public class TestUtil {
         }
 
         public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
-            throws DbException, IOException, TransactionAbortedException {
+                throws DbException, IOException, TransactionAbortedException {
             throw new RuntimeException("not implemented");
         }
 
         public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t)
-            throws DbException, TransactionAbortedException {
+                throws DbException, TransactionAbortedException {
             throw new RuntimeException("not implemented");
         }
 
@@ -236,9 +236,9 @@ public class TestUtil {
             throw new RuntimeException("not implemented");
         }
 
-		public TupleDesc getTupleDesc() {			
-			return td;
-		}
+        public TupleDesc getTupleDesc() {
+            return td;
+        }
     }
 
     /**
@@ -284,19 +284,19 @@ public class TestUtil {
             return tup;
         }
 
-		public boolean hasNext() throws DbException, TransactionAbortedException {
-			if (cur >= high) return false;
-			return true;
-		}
+        public boolean hasNext() throws DbException, TransactionAbortedException {
+            if (cur >= high) return false;
+            return true;
+        }
 
-		public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
-			if(cur >= high) throw new NoSuchElementException();
+        public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+            if(cur >= high) throw new NoSuchElementException();
             Tuple tup = new Tuple(getTupleDesc());
             for (int i = 0; i < width; ++i)
                 tup.setField(i, new IntField(cur));
             cur++;
             return tup;
-		}
+        }
     }
 
     /**
@@ -384,7 +384,7 @@ public class TestUtil {
 
         protected void setUp() throws Exception {
             try{
-            	Database.reset();
+                Database.reset();
                 empty = Utility.createEmptyHeapFile(emptyFile.getAbsolutePath(), 2);
             } catch (IOException e) {
                 throw new RuntimeException(e);
