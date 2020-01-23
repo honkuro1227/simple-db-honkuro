@@ -67,7 +67,7 @@ public class HeapPage implements Page {
     */
     private int getNumTuples() {        
         // some code goes here
-        return 0;
+        return (int) Math.floor((BufferPool.getPageSize()*8.0/(td.getSize()*8.0+1)));
 
     }
 
@@ -78,7 +78,7 @@ public class HeapPage implements Page {
     private int getHeaderSize() {        
         
         // some code goes here
-        return 0;
+        return (int)Math.ceil(getNumTuples()/8.0);
                  
     }
     
@@ -112,7 +112,7 @@ public class HeapPage implements Page {
      */
     public HeapPageId getId() {
     // some code goes here
-    throw new UnsupportedOperationException("implement this");
+    return this.pid;
     }
 
     /**
@@ -282,7 +282,13 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
         // some code goes here
-        return 0;
+        int count = header.length * 8;
+        for (int i = 0; i < header.length * 8; i++) {
+            if (isSlotUsed(i)) {
+                count--;
+            }
+        }
+        return count;
     }
 
     /**
@@ -290,7 +296,10 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // some code goes here
-        return false;
+        int index=i/8;
+        int byteoffset=i%8;
+        int used=(header[index]>>byteoffset)&1;
+        return used == 1;
     }
 
     /**
@@ -303,11 +312,17 @@ public class HeapPage implements Page {
 
     /**
      * @return an iterator over all tuples on this page (calling remove on this iterator throws an UnsupportedOperationException)
-     * (note that this iterator shouldn't return tuples in empty slots!)
+     *      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return null;
+        List<Tuple> Tuples=new ArrayList<Tuple>();
+        for(int i=0;i<numSlots;i++){
+            if(isSlotUsed(i)){
+                Tuples.add(tuples[i]);
+            }
+        }
+        return Tuples.iterator();
     }
 
 }

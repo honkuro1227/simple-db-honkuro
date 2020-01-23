@@ -1,5 +1,7 @@
 package simpledb;
 
+import java.util.Objects;
+
 /** Unique identifier for HeapPage objects. */
 public class HeapPageId implements PageId {
 
@@ -10,14 +12,18 @@ public class HeapPageId implements PageId {
      * @param tableId The table that is being referenced
      * @param pgNo The page number in that table.
      */
+    private int PageNo;
+    private int Tableid;
     public HeapPageId(int tableId, int pgNo) {
         // some code goes here
+        PageNo=pgNo;
+        Tableid=tableId;
     }
 
     /** @return the table associated with this PageId */
     public int getTableId() {
         // some code goes here
-        return 0;
+        return Tableid;
     }
 
     /**
@@ -26,7 +32,7 @@ public class HeapPageId implements PageId {
      */
     public int getPageNumber() {
         // some code goes here
-        return 0;
+        return PageNo;
     }
 
     /**
@@ -37,7 +43,7 @@ public class HeapPageId implements PageId {
      */
     public int hashCode() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+       return this.getTableId()+this.getPageNumber();
     }
 
     /**
@@ -49,9 +55,13 @@ public class HeapPageId implements PageId {
      */
     public boolean equals(Object o) {
         // some code goes here
+        if(o==null||o.getClass()!=getClass())return false;
+        if(o instanceof HeapPageId){
+            HeapPageId cp= (HeapPageId) o;
+                return Objects.equals(this.getTableId(),cp.getTableId())&& Objects.equals(this.getPageNumber(),cp.getPageNumber());
+        }
         return false;
     }
-
     /**
      *  Return a representation of this object as an array of
      *  integers, for writing to disk.  Size of returned array must contain

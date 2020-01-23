@@ -115,7 +115,7 @@ public class TupleDesc implements Serializable {
         if (i>=items.length||i<0){
             throw new NoSuchElementException();
         }
-        return items[i].toString();
+        return items[i].fieldName;
     }
 
     /**
