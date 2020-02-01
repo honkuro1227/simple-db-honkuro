@@ -106,7 +106,7 @@ public class IntegerAggregator implements Aggregator {
         System.out.print(countTime.values()+"\n");
         TupleDesc tupleDesc;
         ArrayList<Tuple> tuples;
-        if(gbfield==NO_GROUPING){
+        if(gbfield!=NO_GROUPING){
             tupleDesc = new TupleDesc(
                     new Type[]{gbfieldtype, Type.INT_TYPE},
                     new String[]{Name, what.toString()});
@@ -119,17 +119,28 @@ public class IntegerAggregator implements Aggregator {
         tuples = new ArrayList<Tuple>();
         for (Field group : map.keySet()) {
             Tuple tuple = new Tuple(tupleDesc);
-            if (gbfield!=NO_GROUPING) {
-                tuple.setField(0, group);
-            }
             if(gbfield!=NO_GROUPING){
+                if(what.name()=="AVG"){
+                    int value=map.get(group)/countTime.get(group);
+                    tuple.setField(0, group);
+                    tuple.setField(1,new IntField(value));
+                }
+                else{
+                    tuple.setField(0, group);
+                    tuple.setField(1,new IntField(map.get(group)));
+                }
             }
             else{
+                if(what.name()=="AVG"){
+                    int value=map.get(group)/countTime.get(group);
+                    tuple.setField(0, new IntField(value));
+                }
+                else{
+                    tuple.setField(0,new IntField(map.get(group)));
+                }
             }
             tuples.add(tuple);
         }
-
-
         return new TupleIterator(tupleDesc, tuples);
     }
 }
