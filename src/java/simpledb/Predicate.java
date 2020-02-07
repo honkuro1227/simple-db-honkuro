@@ -6,7 +6,6 @@ import java.io.Serializable;
  * Predicate compares tuples to a specified Field value.
  */
 public class Predicate implements Serializable {
-
     private static final long serialVersionUID = 1L;
     private int field;
     private Op op;

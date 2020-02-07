@@ -92,7 +92,9 @@ public class TupleDesc implements Serializable {
         }
 
     }
-
+    public TupleDesc(TDItem[] Td){
+        items=Td;
+    }
     /**
      * @return the number of fields in this TupleDesc
      */

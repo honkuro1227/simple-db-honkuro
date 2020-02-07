@@ -1,0 +1,37 @@
+
+Report the runtimes of the queries from Exercise 7. If a query takes a very long time to complete, you can report
+that the query did not complete after running for however long you let it run.
+Exercise7 cannot pass all query plan.
+Query1 runtime is 4 second. Complete.
+Query2 runtime is 111 second. Fail.
+Query3 runtime is 0.3 second. Fail.
+
+/*In your own words, describe what this lab was about: Describe the various components that
+you implemented and how they work. This part needs to
+demonstrate your understanding of the lab! */
+
+Bufferpool calls Heapfile to insert tuple on the HeapPage, also it will log the use page. 
+
+**Describe any design decisions you made, including your choice of page eviction policy. 
+
+**Describe any missing or incomplete elements of your code.
+Although passing all systemtest, I still cannot pass the exercise 7.
+
+
+
+src/simpledb/Predicate.java
+src/simpledb/JoinPredicate.java
+src/simpledb/Filter.java
+src/simpledb/Join.java
+**
+src/simpledb/IntegerAggregator.java
+** how to group 
+src/simpledb/StringAggregator.java
+src/simpledb/Aggregate.java
+src/simpledb/HeapPage.java
+src/simpledb/HeapFile.java
+src/simpledb/Insert.java
+src/simpledb/Delete.java
+src/simpledb/BufferPool.java
+**eviction policy
+while

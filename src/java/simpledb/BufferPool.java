@@ -75,7 +75,7 @@ public class BufferPool {
         if(this.cache.containsKey(pid)){
             return cache.get(pid);
         }
-        if(cache.size()>=this.pages.length){
+        if(cache.size()==this.pages.length){
             evictPage();
         }
 
@@ -234,32 +234,13 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
-
         PageId pid = logusedpage.remove(0);
-
         cache.get(pid).markDirty(true, new TransactionId());
         try{
             flushPage(pid);
             cache.remove(pid);
         }catch(IOException e){
-
         }
-
-//        while(logusedpage.iterator().hasNext()){
-//
-//            PageId pid = logusedpage.iterator().next();
-//            System.out.print(pid.toString());
-//            cache.get(pid).markDirty(true, new TransactionId());
-//            try{
-//                flushPage(pid);
-//                cache.remove(pid);
-//            }catch(IOException e){
-//
-//            }
-//        }
-//        System.out.print(logusedpage.iterator().hasNext());
-
-
     }
 
 }
