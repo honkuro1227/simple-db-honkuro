@@ -120,8 +120,13 @@ public class SystemTestUtil {
 
         iterator.open();
         while (iterator.hasNext()) {
+
             Tuple t = iterator.next();
+
             ArrayList<Integer> list = tupleToList(t);
+//            System.out.print("copy");
+//            System.out.print(list);
+//            System.out.print("end");
             boolean isExpected = copy.remove(list);
             Debug.log("scanned tuple: %s (%s)", t, isExpected ? "expected" : "not expected");
 

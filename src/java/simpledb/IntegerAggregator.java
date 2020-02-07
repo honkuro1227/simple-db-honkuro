@@ -77,7 +77,7 @@ public class IntegerAggregator implements Aggregator {
                 map.put(groupField, Math.min(map.get(groupField), aggregate.getValue()));
             }
             if (what.name() == "COUNT") {
-                map.merge(groupField, 1, Integer::sum);
+                countTime.merge(groupField, 1, Integer::sum);
             }
             if (what.name() == "AVG") {
                 //System.out.println(aggregate.getValue());
@@ -100,10 +100,10 @@ public class IntegerAggregator implements Aggregator {
      */
     public OpIterator iterator() {
         // some code goes here
-        System.out.print(map.keySet());
-        System.out.print(map.values()+"\n");
-        System.out.print(countTime.keySet());
-        System.out.print(countTime.values()+"\n");
+//        System.out.print(map.keySet());
+//        System.out.print(map.values()+"\n");
+//        System.out.print(countTime.keySet());
+//        System.out.print(countTime.values()+"\n");
         TupleDesc tupleDesc;
         ArrayList<Tuple> tuples;
         if(gbfield!=NO_GROUPING){
@@ -125,6 +125,11 @@ public class IntegerAggregator implements Aggregator {
                     tuple.setField(0, group);
                     tuple.setField(1,new IntField(value));
                 }
+                else if (what.name()=="COUNT"){
+                    int value=countTime.get(group);
+                    tuple.setField(0, group);
+                    tuple.setField(1,new IntField(value));
+                }
                 else{
                     tuple.setField(0, group);
                     tuple.setField(1,new IntField(map.get(group)));
@@ -133,6 +138,10 @@ public class IntegerAggregator implements Aggregator {
             else{
                 if(what.name()=="AVG"){
                     int value=map.get(group)/countTime.get(group);
+                    tuple.setField(0, new IntField(value));
+                }
+                else if (what.name()=="COUNT"){
+                    int value=countTime.get(group);
                     tuple.setField(0, new IntField(value));
                 }
                 else{

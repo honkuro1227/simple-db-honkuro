@@ -1,6 +1,8 @@
 package simpledb;
 
+import javax.xml.crypto.Data;
 import java.io.*;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -11,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * The BufferPool is also responsible for locking;  when a transaction fetches
  * a page, BufferPool checks that the transaction has the appropriate
  * locks to read/write the page.
- * 
+ *
  * @Threadsafe, all fields are final
  */
 public class BufferPool {
@@ -24,7 +26,7 @@ public class BufferPool {
     other classes. BufferPool should use the numPages argument to the
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
-
+    private Vector<PageId> logusedpage;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -34,17 +36,18 @@ public class BufferPool {
         // some code goes here
         pages=new Page [numPages] ;
         cache=new ConcurrentHashMap<PageId,Page>();
+        logusedpage=new Vector<>();
     }
-    
+
     public static int getPageSize() {
       return pageSize;
     }
-    
+
     // THIS FUNCTION SHOULD ONLY BE USED FOR TESTING!!
     public static void setPageSize(int pageSize) {
     	BufferPool.pageSize = pageSize;
     }
-    
+
     // THIS FUNCTION SHOULD ONLY BE USED FOR TESTING!!
     public static void resetPageSize() {
     	BufferPool.pageSize = DEFAULT_PAGE_SIZE;
@@ -72,13 +75,16 @@ public class BufferPool {
         if(this.cache.containsKey(pid)){
             return cache.get(pid);
         }
+        if(cache.size()>=this.pages.length){
+            evictPage();
+        }
 
-        else {
             DbFile dbf=Database.getCatalog().getDatabaseFile(pid.getTableId());
             Page page=dbf.readPage(pid);
             cache.put(pid,page);
+            logusedpage.add(pid);
             return page;
-        }
+
 
     }
 
@@ -128,14 +134,14 @@ public class BufferPool {
 
     /**
      * Add a tuple to the specified table on behalf of transaction tid.  Will
-     * acquire a write lock on the page the tuple is added to and any other 
-     * pages that are updated (Lock acquisition is not needed for lab2). 
+     * acquire a write lock on the page the tuple is added to and any other
+     * pages that are updated (Lock acquisition is not needed for lab2).
      * May block if the lock(s) cannot be acquired.
-     * 
+     *
      * Marks any pages that were dirtied by the operation as dirty by calling
-     * their markDirty bit, and adds versions of any pages that have 
-     * been dirtied to the cache (replacing any existing versions of those pages) so 
-     * that future requests see up-to-date pages. 
+     * their markDirty bit, and adds versions of any pages that have
+     * been dirtied to the cache (replacing any existing versions of those pages) so
+     * that future requests see up-to-date pages.
      *
      * @param tid the transaction adding the tuple
      * @param tableId the table to add the tuple to
@@ -145,6 +151,13 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+
+        DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> pages = file.insertTuple(tid, t);
+        pages.forEach (page -> {page.markDirty(true,tid);
+                                if(!cache.containsKey(page.getId())) logusedpage.add(page.getId()); cache.put(page.getId(), page); });
+
+
     }
 
     /**
@@ -153,9 +166,9 @@ public class BufferPool {
      * other pages that are updated. May block if the lock(s) cannot be acquired.
      *
      * Marks any pages that were dirtied by the operation as dirty by calling
-     * their markDirty bit, and adds versions of any pages that have 
-     * been dirtied to the cache (replacing any existing versions of those pages) so 
-     * that future requests see up-to-date pages. 
+     * their markDirty bit, and adds versions of any pages that have
+     * been dirtied to the cache (replacing any existing versions of those pages) so
+     * that future requests see up-to-date pages.
      *
      * @param tid the transaction deleting the tuple.
      * @param t the tuple to delete
@@ -164,6 +177,9 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+        DbFile file = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
+        ArrayList<Page> pages = file.deleteTuple(tid, t);
+        pages.forEach (page ->page.markDirty(true, tid));
     }
 
     /**
@@ -181,7 +197,7 @@ public class BufferPool {
         Needed by the recovery manager to ensure that the
         buffer pool doesn't keep a rolled back page in its
         cache.
-        
+
         Also used by B+ tree files to ensure that deleted pages
         are removed from the cache so they can be reused safely
     */
@@ -197,8 +213,13 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
-    }
+        Page pg = cache.get(pid);
+        if(pg.isDirty() == null) return;
+        pg.markDirty(false,new TransactionId());
+        DbFile df = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        df.writePage(pg);
 
+    }
     /** Write all pages of the specified transaction to disk.
      */
     public synchronized  void flushPages(TransactionId tid) throws IOException {
@@ -213,6 +234,32 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
+
+        PageId pid = logusedpage.remove(0);
+
+        cache.get(pid).markDirty(true, new TransactionId());
+        try{
+            flushPage(pid);
+            cache.remove(pid);
+        }catch(IOException e){
+
+        }
+
+//        while(logusedpage.iterator().hasNext()){
+//
+//            PageId pid = logusedpage.iterator().next();
+//            System.out.print(pid.toString());
+//            cache.get(pid).markDirty(true, new TransactionId());
+//            try{
+//                flushPage(pid);
+//                cache.remove(pid);
+//            }catch(IOException e){
+//
+//            }
+//        }
+//        System.out.print(logusedpage.iterator().hasNext());
+
+
     }
 
 }

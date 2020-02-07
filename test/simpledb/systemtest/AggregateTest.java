@@ -83,7 +83,8 @@ public class AggregateTest extends SimpleDbTestBase {
         // Compute the expected answer
         ArrayList<ArrayList<Integer>> expected =
                 aggregate(createdTuples, operation, 1, groupColumn);
-
+//        System.out.print("expected");
+//        System.out.print(expected);
         // validate that we get the answer
         validateAggregate(table, operation, 1, groupColumn, expected);
     }

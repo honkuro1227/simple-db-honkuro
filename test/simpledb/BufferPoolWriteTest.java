@@ -80,7 +80,7 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
         	assertEquals(504-i-1, p.getNumEmptySlots());
         }
     }
-    
+
     /**
      * Unit test for BufferPool.deleteTuple()
      */
@@ -88,17 +88,17 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
 
     	// heap file should have ~10 pages
     	HeapFile hf = SystemTestUtil.createRandomHeapFile(2, 504*10, null, null);
-    	DbFileIterator it = hf.iterator(tid); 
+    	DbFileIterator it = hf.iterator(tid);
     	it.open();
-    	
+
     	ArrayList<Tuple> tuples = new ArrayList<Tuple>();
     	while(it.hasNext()) {
     		tuples.add(it.next());
     	}
-    	
+
     	// clear the cache
     	Database.resetBufferPool(BufferPool.DEFAULT_PAGES);
-        
+
     	// delete 504 tuples from the first page
     	for (int i = 0; i < 504; ++i) {
     		Tuple t = tuples.get(i);
@@ -106,7 +106,7 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
         	HeapPage p = (HeapPage) Database.getBufferPool().getPage(tid, t.getRecordId().getPageId(), Permissions.READ_ONLY);
         	assertEquals(i+1, p.getNumEmptySlots());
         }
-    	
+
     	// delete 504 tuples from the second page
     	for (int i = 0; i < 504; ++i) {
     		Tuple t = tuples.get(i+504);
@@ -115,21 +115,22 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
         	assertEquals(i+1, p.getNumEmptySlots());
         }
     }
-    
+
     @Test public void handleManyDirtyPages() throws Exception {
     	HeapFileDuplicates hfd = new HeapFileDuplicates(empty.getFile(), empty.getTupleDesc(), 10);
     	Database.getCatalog().addTable(hfd, SystemTestUtil.getUUID());
     	Database.getBufferPool().insertTuple(tid, hfd.getId(), Utility.getHeapTuple(1, 2));
-    	
+
     	// there should now be 10 tuples (on 10 different pages) in the buffer pool
     	DbFileIterator it = hfd.iterator(tid);
     	it.open();
-    	
+
     	int count = 0;
     	while(it.hasNext()) {
     		it.next();
     		count++;
     	}
+
     	assertEquals(10, count);
     }
 
