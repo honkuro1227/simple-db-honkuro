@@ -1,37 +1,54 @@
-
 Report the runtimes of the queries from Exercise 7. If a query takes a very long time to complete, you can report
 that the query did not complete after running for however long you let it run.
-Exercise7 cannot pass all query plan.
-Query1 runtime is 4 second. Complete.
+
+Query1 runtime is 2 second. Complete.
 Query2 runtime is 111 second. Fail.
 Query3 runtime is 0.3 second. Fail.
+
+Bufferpool calls Heapfile to insert tuple on the HeapPage, also it will markdirty on editted page.
+HeapFile will insert the page by 
+
+-**Describe any design decisions you made, including your choice of page eviction policy. 
+While pools is full, the bufferpool manager will evict pages in the pool.
+
+**Describe any missing or incomplete elements of your code.
+Although passing all systemtest, I still cannot pass the exercise 7.
 
 /*In your own words, describe what this lab was about: Describe the various components that
 you implemented and how they work. This part needs to
 demonstrate your understanding of the lab! */
 
-Bufferpool calls Heapfile to insert tuple on the HeapPage, also it will log the use page. 
+Insert,Delete.java call-> Bufferpool -> Heapfile -> Heapage->
 
-**Describe any design decisions you made, including your choice of page eviction policy. 
+src/simpledb/Aggregator:
+**Distinguish the Data type of tuple to decide which kind of Aggregator need calling.
 
-**Describe any missing or incomplete elements of your code.
-Although passing all systemtest, I still cannot pass the exercise 7.
+src/simpledb/IntegerAggregator.java:
+** Distinguish the operator and whether group or noGroup,
+Operator: max,min,sum,equal, Using the Hashmap "value" to log the tuples field. 
+In the COUNT and AVG use the countime map to store number of Groupfield.
+Using tuples iterator to visit all tuple in the file.
 
+src/simpledb/StringAggregator.java:
+** Group the String type tuples, it only considers the equal case.
 
-
-src/simpledb/Predicate.java
-src/simpledb/JoinPredicate.java
-src/simpledb/Filter.java
-src/simpledb/Join.java
-**
-src/simpledb/IntegerAggregator.java
-** how to group 
-src/simpledb/StringAggregator.java
 src/simpledb/Aggregate.java
+** how to group , max,min,sum,equal, by target groupfield to join the tuples;
+
 src/simpledb/HeapPage.java
+**Inserttuple(): It will interating the tuples in the file. After Inserting, it will check the number of empty slot , and insert, mark the usingslot.
+**DeleteTuple(): It will interating the tuples in the file. Before Delete, it will check the target tuple is in the page. After delete it will release the slot.
+
 src/simpledb/HeapFile.java
-src/simpledb/Insert.java
-src/simpledb/Delete.java
+**Inserttuple(): It will call HeapPage to do insert.
+**DeleteTuple(): It will call HeapPage to do delete.
+
 src/simpledb/BufferPool.java
-**eviction policy
-while
+**Flush(): will mark the Dirty page and write into database.
+**DeleteTuple(): it will call HeapFile to do insert. After HeapFile insertTuple, it will log the using page in the cache for evictfuction to evict using page.
+**InsertTuple(): it will call HeapFile to do insert. After HeapFile insertTuple, it will log the using page in the cache for evictfuction to evict using page.
+
+src/simpledb/Insert.java
+**call bufferpool to insert tuple.
+src/simpledb/Delete.java
+**call bufferpool to delete tuple.
