@@ -18,7 +18,7 @@ Although passing all systemtest, I still cannot pass the exercise 7.
 you implemented and how they work. This part needs to
 demonstrate your understanding of the lab! */
 
-Insert,Delete.java call-> Bufferpool -> Heapfile -> Heapage->
+Insert,Delete.java call-> Bufferpool -> Heapfile -> Heapage->( Doing Delete Insert)
 
 src/simpledb/Aggregator:
 **Distinguish the Data type of tuple to decide which kind of Aggregator need calling.
