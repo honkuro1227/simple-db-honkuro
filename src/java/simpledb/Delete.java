@@ -77,7 +77,7 @@ public class Delete extends Operator {
 
             }
             catch (IOException e){
-               System.out.print("hi");
+               System.out.print("no child");
             }
 
         }
@@ -95,7 +95,6 @@ public class Delete extends Operator {
     @Override
     public void setChildren(OpIterator[] children) {
         // some code goes here
-
         this.child=children[0];
     }
 

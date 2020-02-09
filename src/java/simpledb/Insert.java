@@ -85,7 +85,7 @@ public class Insert extends Operator {
                 Database.getBufferPool().insertTuple(t,tableId,tp);
             }
             catch (IOException e){
-                throw new DbException("KKK");
+                throw new DbException("morethanonce");
             }
         }
         Tuple re=new Tuple(getTupleDesc());
