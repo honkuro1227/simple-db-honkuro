@@ -59,7 +59,7 @@ public class IntegerAggregator implements Aggregator {
             groupField = tup.getField(gbfield);
             Name= tup.getTupleDesc().getFieldName(gbfield);
         }
-        //System.out.println(groupField+aggregate.toString());
+
 
         if (!map.containsKey(groupField)) {
             map.put(groupField, aggregate.getValue());
@@ -80,7 +80,7 @@ public class IntegerAggregator implements Aggregator {
                 countTime.merge(groupField, 1, Integer::sum);
             }
             if (what.name() == "AVG") {
-                //System.out.println(aggregate.getValue());
+
                 countTime.merge(groupField, 1, Integer::sum);
                 map.put(groupField, map.get(groupField) + aggregate.getValue());
             }
@@ -100,10 +100,7 @@ public class IntegerAggregator implements Aggregator {
      */
     public OpIterator iterator() {
         // some code goes here
-//        System.out.print(map.keySet());
-//        System.out.print(map.values()+"\n");
-//        System.out.print(countTime.keySet());
-//        System.out.print(countTime.values()+"\n");
+
         TupleDesc tupleDesc;
         ArrayList<Tuple> tuples;
         if(gbfield!=NO_GROUPING){

@@ -14,7 +14,6 @@ public class Aggregate extends Operator {
     private final int afield;
     private final int gfield;
     private final Aggregator.Op aop;
-    //private final TupleDesc initialChildTD;
     private OpIterator aggregateItr;
     private OpIterator child;
 

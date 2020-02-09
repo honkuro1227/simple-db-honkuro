@@ -33,14 +33,15 @@ simpledb.TupleDesc
 simpledb.IntField
 ||:simpledb.Join
 simpledb.Tuple
+simpledb.Field
 simpledb.OpIterator
+java.util.Iterator
 simpledb.Operator
 simpledb.DbException
 java.util.NoSuchElementException
 simpledb.TupleDesc
 simpledb.Join
 simpledb.JoinPredicate
-java.util.ArrayList
 simpledb.TransactionAbortedException
 ||:simpledb.ParsingException
 simpledb.ParsingException
@@ -710,6 +711,7 @@ java.io.DataOutputStream
 simpledb.BufferPool
 simpledb.Catalog
 java.lang.Math
+java.lang.String
 java.lang.Byte
 java.util.NoSuchElementException
 java.text.ParseException
@@ -719,6 +721,7 @@ simpledb.DbException
 simpledb.HeapPageId
 java.io.IOException
 simpledb.Database
+java.util.List
 simpledb.Field
 java.lang.Object
 ||:simpledb.systemtest.DeleteTest

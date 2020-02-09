@@ -96,12 +96,10 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
 		while(it.hasNext()) {
 			tuples.add(it.next());
 			count++;
-			if (count==10){
-				System.out.println(tuples.get(0).getRecordId().getPageId());
-			}
+
 		}
 
-		System.out.println(tuples.get(0).getRecordId().getPageId());
+
 		// clear the cache
 		Database.resetBufferPool(BufferPool.DEFAULT_PAGES);
 
@@ -110,7 +108,6 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
 			Tuple t = tuples.get(i);
 			Database.getBufferPool().deleteTuple(tid, t);
 			HeapPage p = (HeapPage) Database.getBufferPool().getPage(tid, t.getRecordId().getPageId(), Permissions.READ_ONLY);
-//			if (i==1) System.out.println( p.getNumEmptySlots());
 			assertEquals(i+1, p.getNumEmptySlots());
 		}
 

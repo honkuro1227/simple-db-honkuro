@@ -116,6 +116,7 @@ public class Join extends Operator {
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
         Tuple result;
+
         if(td1 == null){
             if(child1.hasNext()) td1 = child1.next();
             else return null;
