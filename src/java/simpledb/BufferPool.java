@@ -22,11 +22,15 @@ public class BufferPool {
     private static int pageSize = DEFAULT_PAGE_SIZE;
     private Page[] pages;
     private ConcurrentHashMap<PageId,Page> cache;
+
     /** Default number of pages passed to the constructor. This is used by
     other classes. BufferPool should use the numPages argument to the
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
     private Vector<PageId> logusedpage;
+    //lab3
+    private final LockManager lockManager;
+    private final Object LOCK;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -37,6 +41,9 @@ public class BufferPool {
         pages=new Page [numPages] ;
         cache=new ConcurrentHashMap<PageId,Page>();
         logusedpage=new Vector<>();
+        //lab3
+        lockManager = new LockManager();
+        LOCK = new Object();
     }
 
     public static int getPageSize() {
@@ -69,22 +76,30 @@ public class BufferPool {
      * @param perm the requested permissions on the page
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
-        throws TransactionAbortedException, DbException {
+            throws TransactionAbortedException, DbException, InterruptedException {
         // some code goes here
+        boolean result = (perm == Permissions.READ_ONLY) ? lockManager.grantSLock(tid, pid)
+                : lockManager.grantXLock(tid, pid);
+        while (!result) {
+            if (lockManager.deadlockOccurred(tid, pid)) {
+                throw new TransactionAbortedException();
+                }
+            Thread.sleep(500);
+            result = (perm == Permissions.READ_ONLY) ? lockManager.grantSLock(tid, pid)
+                    : lockManager.grantXLock(tid, pid);
+            }
+            if(this.cache.containsKey(pid)){
+                return cache.get(pid);
+            }
 
-        if(this.cache.containsKey(pid)){
-            return cache.get(pid);
-        }
-        if(cache.size()==this.pages.length){
-            evictPage();
-        }
-
+            if(cache.size()==this.pages.length){
+                evictPage();
+            }
             DbFile dbf=Database.getCatalog().getDatabaseFile(pid.getTableId());
             Page page=dbf.readPage(pid);
             cache.put(pid,page);
             logusedpage.add(pid);
             return page;
-
 
     }
 
@@ -100,6 +115,12 @@ public class BufferPool {
     public  void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for lab1|lab2
+        //part1
+        if (!lockManager.unlock(tid, pid)) {
+            //pid does not locked by any transaction
+            //or tid  dose not lock the page pid
+            throw new IllegalArgumentException();
+        }
     }
 
     /**
@@ -116,7 +137,9 @@ public class BufferPool {
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for lab1|lab2
-        return false;
+        //part1
+        return lockManager.getLockProfile(tid, p) != null;
+
     }
 
     /**
@@ -130,6 +153,7 @@ public class BufferPool {
         throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+
     }
 
     /**
