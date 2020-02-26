@@ -1,64 +1,67 @@
 package simpledb;
-
+import java.security.Permission;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class LockManager {
-
-    private Map<PageId, List<LockProfile>> lockprofileMap;
-
-
-    private Map<TransactionId, PageId> waitingInfo;
+    private ConcurrentHashMap<PageId, List<LockProfile>> lockprofileMap;
+    private ConcurrentHashMap<TransactionId, PageId> waitingInfo;
     public LockManager() {
-
         lockprofileMap = new ConcurrentHashMap<>();
         waitingInfo = new ConcurrentHashMap<>();
     }
 
-
-
     public synchronized boolean grantSLock(TransactionId tid, PageId pid) {
         ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
         if (list != null && list.size() != 0) {
-            if (list.size() == 1) {
-                LockProfile ls = list.iterator().next();
-                if (ls.getTid().equals(tid)) {
-
-                    return ls.getPerm() == Permissions.READ_ONLY || lock(pid, tid, Permissions.READ_ONLY);
-                } else {
-
-                    return ls.getPerm() == Permissions.READ_ONLY ? lock(pid, tid, Permissions.READ_ONLY) : wait(tid, pid);
-                }
-            } else {
-
-                for (LockProfile ls : list) {
-                    if (ls.getPerm() == Permissions.READ_WRITE) {
-
-                        return ls.getTid().equals(tid) || wait(tid, pid);
-                    } else if (ls.getTid().equals(tid)) {
+            if (list.size() != 1)  {
+                for (LockProfile lp : list) {
+                    if (lp.getPerm() == Permissions.READ_WRITE) {
+                        return lp.getTid().equals(tid) || wait(tid, pid);
+                    } else if (lp.getTid().equals(tid)) {
                         return true;
                     }
                 }
-
                 return lock(pid, tid, Permissions.READ_ONLY);
             }
-        } else {
+            else {
+                LockProfile lp = list.iterator().next();
+                if (lp.getTid().equals(tid)) {
+                    if(lp.getPerm()== Permissions.READ_ONLY){
+                        return true;
+                    }
+                    else{
+                        return lock(pid, tid, Permissions.READ_ONLY);
+                    }
+                } else {
+                    if (lp.getPerm()== Permissions.READ_ONLY){
+                        return lock(pid, tid, Permissions.READ_ONLY);
+                    }
+                    else{
+                        return wait(tid,pid);
+                    }
+                }
+            }
+        }
+        else {
             return lock(pid, tid, Permissions.READ_ONLY);
         }
     }
-
 
     public synchronized boolean grantXLock(TransactionId tid, PageId pid) {
         ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
         if (list != null && list.size() != 0) {
             if (list.size() == 1) {
                 LockProfile ls = list.iterator().next();
-
-                return ls.getTid().equals(tid) ? ls.getPerm() == Permissions.READ_WRITE || lock(pid, tid, Permissions.READ_WRITE) : wait(tid, pid);
-            } else {
-
+                if(ls.getTid().equals(tid)){
+                    return ls.getPerm()== Permissions.READ_ONLY||lock(pid,tid,Permissions.READ_WRITE);
+                }
+                else{
+                    return wait(tid,pid);
+                }
+            }
+            else {
                 if (list.size() == 2) {
                     for (LockProfile ls : list) {
                         if (ls.getTid().equals(tid) && ls.getPerm() == Permissions.READ_WRITE) {
@@ -73,15 +76,13 @@ public class LockManager {
         }
     }
 
-
-
     private synchronized boolean lock(PageId pid, TransactionId tid, Permissions perm) {
-        LockProfile nls = new LockProfile(tid, perm);
+        LockProfile lock = new LockProfile(tid, perm);
         ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
         if (list == null) {
             list = new ArrayList<>();
         }
-        list.add(nls);
+        list.add(lock);
         lockprofileMap.put(pid, list);
         waitingInfo.remove(tid);
         return true;
@@ -93,12 +94,10 @@ public class LockManager {
         return false;
     }
 
-
-
     public synchronized boolean unlock(TransactionId tid, PageId pid) {
-        ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
-
-        if (list == null || list.size() == 0) return false;
+        if (lockprofileMap.get(pid) == null || lockprofileMap.get(pid).size() == 0) return false;
+        ArrayList<LockProfile> list =new ArrayList<>();
+        list.addAll(lockprofileMap.get(pid));
         LockProfile ls = getLockProfile(tid, pid);
         if (ls == null) return false;
         list.remove(ls);
@@ -106,27 +105,22 @@ public class LockManager {
         return true;
     }
 
-
     public synchronized void releaseTransactionLocks(TransactionId tid) {
-
         List<PageId> toRelease = getAllLocksByTid(tid);
         for (PageId pid : toRelease) {
             unlock(tid, pid);
         }
     }
 
-
     public synchronized boolean deadlockOccurred(TransactionId tid, PageId pid) {
-        List<LockProfile> holders = lockprofileMap.get(pid);
-        if (holders == null || holders.size() == 0) {
+        List<LockProfile> holdlocks = lockprofileMap.get(pid);
+        if (holdlocks == null || holdlocks.size() == 0) {
             return false;
         }
         List<PageId> pids = getAllLocksByTid(tid);
-        for (LockProfile ls : holders) {
-            TransactionId holder = ls.getTid();
-
+        for (LockProfile Lp : holdlocks) {
+            TransactionId holder = Lp.getTid();
             if (!holder.equals(tid)) {
-
                 boolean isWaiting = isWaitingResources(holder, pids, tid);
                 if (isWaiting) {
                     return true;
@@ -144,6 +138,7 @@ public class LockManager {
         if (waitingPage == null) {
             return false;
         }
+
         for (PageId pid : pids) {
             if (pid.equals(waitingPage)) {
                 return true;
@@ -159,7 +154,6 @@ public class LockManager {
                 if (isWaiting) return true;
             }
         }
-
         return false;
     }
 
@@ -169,13 +163,14 @@ public class LockManager {
         else return null if cannot find lock page does not exist.
      */
     public synchronized LockProfile getLockProfile(TransactionId tid, PageId pid) {
-        ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
-        if (list == null || list.size() == 0) {
+        if (lockprofileMap.get(pid) == null || lockprofileMap.get(pid).size() == 0) {
             return null;
         }
-        for (LockProfile lockp : list) {
-            if (lockp.getTid().equals(tid)) {
-                return lockp;
+        ArrayList<LockProfile> list=new ArrayList<>();
+        list.addAll(lockprofileMap.get(pid));
+        for (LockProfile lockprofile : list) {
+            if (lockprofile.getTid().equals(tid)) {
+                return lockprofile;
             }
         }
         return null;
@@ -186,22 +181,19 @@ public class LockManager {
      */
     private synchronized List<PageId> getAllLocksByTid(TransactionId tid) {
         ArrayList<PageId> pids = new ArrayList<>();
-        for (Map.Entry<PageId, List<LockProfile>> entry : lockprofileMap.entrySet()) {
-            for (LockProfile ls : entry.getValue()) {
+        for (PageId pid : lockprofileMap.keySet()){
+            for(LockProfile ls: lockprofileMap.get(pid)){
                 if (ls.getTid().equals(tid)) {
-                    pids.add(entry.getKey());
+                    pids.add(pid);
                 }
             }
         }
         return pids;
     }
-
-
 }
  class LockProfile {
     private TransactionId tid;
     private Permissions perm;
-
     public LockProfile(TransactionId tid, Permissions perm) {
         this.tid = tid;
         this.perm = perm;
@@ -210,14 +202,11 @@ public class LockManager {
     public TransactionId getTid() {
         return tid;
     }
-
     public Permissions getPerm() {
         return perm;
     }
 
-
     public boolean equals(Object o) {
-        if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         LockProfile LockProfile = (LockProfile) o;
         return tid.equals(LockProfile.tid) && perm.equals(LockProfile.perm);

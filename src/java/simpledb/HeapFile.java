@@ -135,11 +135,13 @@ public class HeapFile implements DbFile {
                     e.printStackTrace();
                 }
                 op.insertTuple(t);
+                op.markDirty(true,tid);
                 return new ArrayList<Page>(Arrays.asList(op));
             }
 
 
         }
+
         HeapPageId pid = new HeapPageId(getId(), numPages());
         HeapPage page = null;
         try {
@@ -148,6 +150,7 @@ public class HeapFile implements DbFile {
             e.printStackTrace();
         }
         page.insertTuple(t);
+        page.markDirty(true,tid);
         return new ArrayList<Page>(Arrays.asList(page));
 
         // not necessary for lab1
@@ -169,7 +172,7 @@ public class HeapFile implements DbFile {
             e.printStackTrace();
         }
         page.deleteTuple(t);
-
+        page.markDirty(true,tid);
         return new ArrayList<Page>(Arrays.asList(page));
         // not necessary for lab1
     }

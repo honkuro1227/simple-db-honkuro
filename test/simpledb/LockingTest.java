@@ -89,6 +89,8 @@ public class LockingTest extends TestUtil.CreateHeapFile {
 
     // if we don't have the lock after TIMEOUT, we assume blocking.
     Thread.sleep(TIMEOUT);
+//    System.out.println(expected);
+//    System.out.print(t.acquired());
     assertEquals(expected, t.acquired());
     assertNull(t.getError());
 

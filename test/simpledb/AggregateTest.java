@@ -28,7 +28,7 @@ public class AggregateTest extends SimpleDbTestBase {
   /**
    * Initialize each unit test
    */
-  @Before public void createTupleLists() throws Exception {	  
+  @Before public void createTupleLists() throws Exception {
     this.scan1 = TestUtil.createTupleList(width1,
         new int[] { 1, 2,
                     1, 4,
