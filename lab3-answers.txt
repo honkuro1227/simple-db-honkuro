@@ -1,6 +1,6 @@
 Lockmanager:
 we create structure LockProfile store txn id and lock type, and locksmanager maps the LockProfile.
-LockProfile: data type stores Pid.
+LockProfile: data type stores tid, permission, because this two things decide the lock.
 grantLock():
 if tid has the read locks, it will return true.
 if tid has the write locks or there is no lock, it will add lock(read) and return true
@@ -25,3 +25,13 @@ From the waitlist in the lockmanager, we can figure out all the lock that the sp
 Deadlock timeout:
 Set up the time for check the deadlock occur, however, if the condition that the two tids hold other's lock, the time out will not solve the problem. 
 Therefore, dependency graph will be better than timeout
+
+Bufferpool:
+Evict policy(): it will check the dirty pages, if it is markdirty by txn. And, it will check whether the dirty pages are full in the buffpool.
+If it is full, it will return error.
+
+getPage(): First, it will try to get lock of the page, 
+if it cannot grantlock , it will check whether deadlock occur. the thread.sleep use to control the check deadlock times.
+
+Transactioncomplete(tid,commit): it will check all the dirty page in the bufferpool. If commit is true, it will flush the dirty page into database. 
+If abort, it will rollback to the latest frame.
