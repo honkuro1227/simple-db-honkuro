@@ -6,13 +6,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class LockManager {
     private ConcurrentHashMap<PageId, List<LockProfile>> lockprofileMap;
-    private ConcurrentHashMap<TransactionId, PageId> waitingInfo;
+    private ConcurrentHashMap<TransactionId, PageId> waitinglist;
     public LockManager() {
         lockprofileMap = new ConcurrentHashMap<>();
-        waitingInfo = new ConcurrentHashMap<>();
+        waitinglist = new ConcurrentHashMap<>();
     }
 
-    public synchronized boolean grantSLock(TransactionId tid, PageId pid) {
+    public synchronized boolean grantRlock(TransactionId tid, PageId pid) {
         ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
         if (list != null && list.size() != 0) {
             if (list.size() != 1)  {
@@ -49,7 +49,7 @@ public class LockManager {
         }
     }
 
-    public synchronized boolean grantXLock(TransactionId tid, PageId pid) {
+    public synchronized boolean grantWlock(TransactionId tid, PageId pid) {
         ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
         if (list != null && list.size() != 0) {
             if (list.size() == 1) {
@@ -84,13 +84,13 @@ public class LockManager {
         }
         list.add(lock);
         lockprofileMap.put(pid, list);
-        waitingInfo.remove(tid);
+        waitinglist.remove(tid);
         return true;
     }
 
 
     private synchronized boolean wait(TransactionId tid, PageId pid) {
-        waitingInfo.put(tid, pid);
+        waitinglist.put(tid, pid);
         return false;
     }
 
@@ -134,7 +134,7 @@ public class LockManager {
      check whether lock impacts the process.
      */
     private synchronized boolean isWaitingResources(TransactionId tid, List<PageId> pids, TransactionId toRemove) {
-        PageId waitingPage = waitingInfo.get(tid);
+        PageId waitingPage = waitinglist.get(tid);
         if (waitingPage == null) {
             return false;
         }
@@ -211,6 +211,4 @@ public class LockManager {
         LockProfile LockProfile = (LockProfile) o;
         return tid.equals(LockProfile.tid) && perm.equals(LockProfile.perm);
     }
-
-
 }

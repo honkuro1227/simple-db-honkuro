@@ -79,18 +79,18 @@ public class BufferPool {
         // some code goes here
         boolean result;
         if (perm == Permissions.READ_ONLY) {
-            result=lockManager.grantSLock(tid, pid);
+            result=lockManager.grantRlock(tid, pid);
         }
         else{
-            result=lockManager.grantXLock(tid, pid);
+            result=lockManager.grantWlock(tid, pid);
         }
         while (!result) {
             if (lockManager.deadlockOccurred(tid, pid)) {
                 throw new TransactionAbortedException();
             }
             Thread.sleep(500);
-            result = (perm == Permissions.READ_ONLY) ? lockManager.grantSLock(tid, pid)
-                    : lockManager.grantXLock(tid, pid);
+            result = (perm == Permissions.READ_ONLY) ? lockManager.grantWlock(tid, pid)
+                    : lockManager.grantRlock(tid, pid);
         }
         if(this.cache.containsKey(pid)){
             return cache.get(pid);
