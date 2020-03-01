@@ -53,9 +53,9 @@ public class LockManager {
         ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
         if (list != null && list.size() != 0) {
             if (list.size() == 1) {
-                LockProfile ls = list.iterator().next();
-                if(ls.getTid().equals(tid)){
-                    return ls.getPerm()== Permissions.READ_ONLY||lock(pid,tid,Permissions.READ_WRITE);
+                LockProfile lp = list.iterator().next();
+                if(lp.getTid().equals(tid)){
+                    return lp.getPerm()== Permissions.READ_ONLY||lock(pid,tid,Permissions.READ_WRITE);
                 }
                 else{
                     return wait(tid,pid);
@@ -63,8 +63,8 @@ public class LockManager {
             }
             else {
                 if (list.size() == 2) {
-                    for (LockProfile ls : list) {
-                        if (ls.getTid().equals(tid) && ls.getPerm() == Permissions.READ_WRITE) {
+                    for (LockProfile lp : list) {
+                        if (lp.getTid().equals(tid) && lp.getPerm() == Permissions.READ_WRITE) {
                             return true;
                         }
                     }
@@ -98,9 +98,9 @@ public class LockManager {
         if (lockprofileMap.get(pid) == null || lockprofileMap.get(pid).size() == 0) return false;
         ArrayList<LockProfile> list =new ArrayList<>();
         list.addAll(lockprofileMap.get(pid));
-        LockProfile ls = getLockProfile(tid, pid);
-        if (ls == null) return false;
-        list.remove(ls);
+        LockProfile lp = getLockProfile(tid, pid);
+        if (lp == null) return false;
+        list.remove(lp);
         lockprofileMap.put(pid, list);
         return true;
     }
@@ -147,8 +147,8 @@ public class LockManager {
 
         List<LockProfile> holders = lockprofileMap.get(waitingPage);
         if (holders == null || holders.size() == 0) return false;
-        for (LockProfile ls : holders) {
-            TransactionId holder = ls.getTid();
+        for (LockProfile lp : holders) {
+            TransactionId holder = lp.getTid();
             if (!holder.equals(toRemove)) {
                 boolean isWaiting = isWaitingResources(holder, pids, toRemove);
                 if (isWaiting) return true;
@@ -182,8 +182,8 @@ public class LockManager {
     private synchronized List<PageId> getAllLocksByTid(TransactionId tid) {
         ArrayList<PageId> pids = new ArrayList<>();
         for (PageId pid : lockprofileMap.keySet()){
-            for(LockProfile ls: lockprofileMap.get(pid)){
-                if (ls.getTid().equals(tid)) {
+            for(LockProfile lp: lockprofileMap.get(pid)){
+                if (lp.getTid().equals(tid)) {
                     pids.add(pid);
                 }
             }
