@@ -24,76 +24,7 @@ As before, you'll need to pull from the lab 4 upstream branch:
 $ git pull upstream lab4   # Pull lab4!
 ```
 
-<<<<<<< HEAD
-*   **Eclipse users** should do one of the following:
-    *   Either start a new project called CSE444-lab3 using the instructions from lab 1.
-    *   Or, continue using the CSE444-lab2 project. In that case, you should add the new files to your lab directory by selecting **Team > Pull**. For help in Eclipse/Git configuration look at the [EGit User Guide](https://wiki.eclipse.org/EGit/User_Guide#Fetching_from_upstream) under 3.3.4 Pulling New Changes from Upstream Branch.
-    *   For Eclipse, you can also run `ant clean` and then `ant eclipse` after pulling the new files which should get the code to compile.
-
-    You may need to take one more step for your code to compile. Under the package explorer, right click the project name (probably `CSE444-lab1`), and select **Properties**. Choose **Java Build Path** on the left-hand-side, and click on the **Libraries** tab on the right-hand-side. Push the **Add JARs...** button, select **zql.jar** and **jline-0.9.94.jar**, and push **OK**, followed by **OK**. Your code should now compile.
-
-## 2\. Transactions, Locking, and Concurrency Control
-
-Before starting, you should make sure you understand what a transaction is and how **strict two-phase locking** (which you will use to ensure isolation and atomicity of your transactions) works.
-
-In the remainder of this section, we briefly overview these concepts and discuss how they relate to SimpleDB.
-
-### 2.1\. Transactions
-
-A transaction is a group of database actions (e.g., inserts, deletes, and reads) that are executed _atomically_; that is, either all of the actions complete or none of them do, and it is not apparent to an outside observer of the database that these actions were not completed as a part of a single, indivisible action.
-
-### 2.2\. The ACID Properties
-
-To help you understand how transaction management works in SimpleDB, we briefly review how it ensures that the ACID properties are satisfied:
-
-*   **Atomicity**: Strict two-phase locking and careful buffer management ensure atomicity.
-*   **Consistency**: The database is transaction consistent by virtue of atomicity. Other consistency issues (e.g., key constraints) are not addressed in SimpleDB.
-*   **Isolation**: Strict two-phase locking provides isolation.
-*   **Durability**: A FORCE buffer management policy ensures durability (see Section 2.3 below).
-
-### 2.3\. Recovery and Buffer Management
-
-To simplify your job, we recommend that you implement a **NO STEAL/FORCE** buffer management policy. As we discussed in class, this means that:
-
-<<<<<<< HEAD
-<!--### End of Part 1-->
-### Checkpoint -- End of Part 1
-
-You may do this by executing the bash script `turnInLab.sh` with the tag *lab2-part1*
- (see the end of
-the assignment for detailed submission instructions) as follows:
-
-```sh
-$ ./turnInLab.sh lab2-part1
-```
-
-Submitting the first
-part of lab 2 on time is worth 10% of your final grade for lab 2
-and will be graded all-or-nothing. We will NOT run any of the unit
-tests. We will just visually inspect that you submitted something
-reasonably complete.
-
-After executing the `turnInLab.sh` script, make sure to check your repository on GitLab to ensure that the tag has been property applied!  You may do this by visiting `https://gitlab.cs.washington.edu/cse444-20wi/simple-db-YOUR_USERNAME/tags`.
-
----
-=======
-*   You shouldn't evict dirty (updated) pages from the buffer pool if they are locked by an uncommitted transaction (this is NO STEAL).
-*   On transaction commit, you should force dirty pages to disk (e.g., write the pages out) (this is FORCE).
->>>>>>> 21176f48620df6713ca26dce029e4540c29a303b
-
-To further simplify your life, you may assume that SimpleDB will not crash while processing a `transactionComplete` command. Note that these three points mean that you do not need to implement log-based recovery in this lab, since you will never need to undo any work (you never evict dirty pages) and you will never need to redo any work (you force updates on commit and will not crash during commit processing).
-
-### 2.4\. Granting Locks
-
-You will need to add calls to SimpleDB (in `BufferPool`, for example), that allow a caller to request or release a (shared or exclusive) lock on a specific object on behalf of a specific transaction.
-
-We recommend locking at _**page**_ **granularity**, though you should be able to implement locking at _tuple_ granularity if you wish (please do not implement table-level locking). The rest of this document and our unit tests assume page-level locking.
-
-You will need to **create data structures** that keep track of which locks each transaction holds and that check to see if a lock should be granted to a transaction when it is requested. This is important. We recommend that you implement a new, **LockManager class** that will hold these data structures and will manage locking and unlocking operations.
-Note: Make sure that a call to resetBufferPool() also resets your LockManager because the tests rely on this. **Do not** use existing util classes like the Java ReentrantLock; these generally make assumptions of about processes that are not always true in SimpleDB and will break some tests. You can use the `synchronized` keyword in appropriate places to implement your own lock manager.
-=======
 #### Logging modifications
->>>>>>> af67b8825581cf82bd7e250c1b3fd69c8b00b41e
 
 You will next need to make the following changes to your existing code:
 
@@ -274,20 +205,6 @@ $ # [additional tests]
 
 If any of these commands fail, we'll be unhappy, and, therefore, so will your grade.
 
-<<<<<<< HEAD
-An additional 50% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
-<<<<<<< HEAD
-
-We've had a lot of fun designing this assignment, and we hope you enjoy hacking on it!
-<<<<<<< HEAD
-# CSE444
-=======
-
->>>>>>> eac9079f3cc9323a717a84e4c0dc61ae2186edfa
-=======
->>>>>>> 21176f48620df6713ca26dce029e4540c29a303b
-=======
 An additional 20% of your grade will be based on the quality of your writeup and our subjective evaluation of your code.
 
 We've had a lot of fun designing this assignment, and we hope you enjoy hacking on it!
->>>>>>> af67b8825581cf82bd7e250c1b3fd69c8b00b41e
