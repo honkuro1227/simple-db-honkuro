@@ -175,6 +175,7 @@ public class BufferPool {
         }
         else{
             for (Page page : cache.values()) {
+                //lab3
 //                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
                     cache.put(page.getId(),page.getBeforeImage());
 //                }
