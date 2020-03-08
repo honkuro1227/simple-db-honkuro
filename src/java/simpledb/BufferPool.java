@@ -75,7 +75,7 @@ public class BufferPool {
      * @param perm the requested permissions on the page
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
-            throws TransactionAbortedException, DbException, InterruptedException {
+            throws TransactionAbortedException, DbException  {
         // some code goes here
         boolean result;
         if (perm == Permissions.READ_ONLY) {
@@ -85,10 +85,16 @@ public class BufferPool {
             result=lockManager.grantWlock(tid, pid);
         }
         while (!result) {
+
             if (lockManager.deadlockOccurred(tid, pid)) {
                 throw new TransactionAbortedException();
             }
-            Thread.sleep(500);
+            try{
+                Thread.sleep(500);
+            }
+            catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             result = (perm == Permissions.READ_ONLY) ? lockManager.grantWlock(tid, pid)
                     : lockManager.grantRlock(tid, pid);
         }
@@ -98,10 +104,11 @@ public class BufferPool {
         if(cache.size()>=this.pages.length){
             evictPage();
         }
-        DbFile dbf=Database.getCatalog().getDatabaseFile(pid.getTableId());
-        Page page=dbf.readPage(pid);
-        cache.put(pid,page);
-        return page;
+
+            DbFile dbf= Database.getCatalog().getDatabaseFile(pid.getTableId());
+            Page page = dbf.readPage(pid);
+            cache.put(pid, page);
+            return page;
 
     }
 
@@ -159,17 +166,18 @@ public class BufferPool {
         lockManager.releaseTransactionLocks(tid);
         if (commit==true) {
             for (Page page : cache.values()) {
-                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
+//                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
                     flushPages(tid);
+//                    Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
                     page.setBeforeImage();
-                }
+//                }
             }
         }
         else{
             for (Page page : cache.values()) {
-                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
+//                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
                     cache.put(page.getId(),page.getBeforeImage());
-                }
+//                }
             }
         }
     }
@@ -261,6 +269,11 @@ public class BufferPool {
         // not necessary for lab1
         HeapPage dirty_page = (HeapPage) cache.get(pid);
         HeapFile table = (HeapFile) Database.getCatalog().getDatabaseFile(pid.getTableId());
+        TransactionId dirtier = dirty_page.isDirty();
+        if (dirtier != null){
+            Database.getLogFile().logWrite(dirtier, dirty_page.getBeforeImage(), dirty_page);
+            Database.getLogFile().force();
+        }
         table.writePage(dirty_page);
         dirty_page.markDirty(false, null);
     }
@@ -302,7 +315,7 @@ public class BufferPool {
             throw new DbException("All pages are dirty, cannot evict");
         }
         for (PageId key : cache.keySet()) {
-            if(cache.get(key).isDirty()==null){
+//flush all page
                 try{
                     flushPage(key);
                     cache.remove(key);
@@ -310,7 +323,7 @@ public class BufferPool {
                 catch (IOException e){
                     e.printStackTrace();
                 }
-            }
+
         }
     }
 
