@@ -1,0 +1,24 @@
+1. I implemented rollback(). First, we start from the first record for this transation and undo the change for any update log. 
+   Due to avoiding casting long and transaction id, I implemented the rollback(long tid) and rollback(TransactionId tid). 
+   Using tidToFirstLogRecord gets the initial tid, and checked offset to the log end by raf.length.
+   Then, using readInt to check the type of tid. If type not equal Update, just jump to next pointer by seek +LONG_SIZE. Else, we will check
+   whether it is data belong abort transation. If it is not belonging abortId, break and seek for the next pointer(readlong).
+
+2. I implemented recover() base on log files. we maintain uncommitted (Set<long>) to figure out the transaction that did not abort or commit yet, and we
+   put the active actions/ offsets into tidToFirstLogRecord and uncommitted. 
+   First we start from the last checkpoint and collect transaction of active transactions.
+   There are four cases :
+	BEGIN_RECORD:
+	not abort, commit, so it is uncommitted transaction, put into tidToFirstLogRecord, and uncommitted set.
+	ABORT_RECORD: 
+	Remove from uncommitted set and rollback(tid).
+	COMMIT_RECORD:
+	Remove from uncommitted. 
+	UPDATE_RECORD:
+        find the before image and after, and discard the page in the buffer pool
+   Finally, redo the uncommitted transactions in the table
+
+3. In BufferPool.java, I modified getpage(), transactionComplete() and evictpage() that allow No-force and steal policy.
+   First, we will not need to check whether page is dirty or not, because we set before_image before flush page.Also, 
+   evictPage to allows any page to be evicted no matter what dirty page is. I also implement logging in flushPage as the slide requires.
+   Second, now it sets before image before flush pages. I also modified

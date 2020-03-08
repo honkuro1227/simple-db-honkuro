@@ -305,18 +305,19 @@ public class BufferPool {
          * In the case where all pages in the buffer pool are dirty,
          * you should throw a DbException.
          */
-        boolean isPageDirty =true;
-        int dirtyPageCount=0;
+        //No Steal, force policy
+//        boolean isPageDirty =true;
+//        int dirtyPageCount=0;
+//        for (PageId key : cache.keySet()) {
+//            if (cache.get(key).isDirty()!=null){
+//                dirtyPageCount++;
+//            }
+//        }
+//        if(dirtyPageCount>=this.pages.length){
+//            throw new DbException("All pages are dirty, cannot evict");
+//        }
         for (PageId key : cache.keySet()) {
-            if (cache.get(key).isDirty()!=null){
-                dirtyPageCount++;
-            }
-        }
-        if(dirtyPageCount>=this.pages.length){
-            throw new DbException("All pages are dirty, cannot evict");
-        }
-        for (PageId key : cache.keySet()) {
-//flush all page
+            //flush all page
                 try{
                     flushPage(key);
                     cache.remove(key);
