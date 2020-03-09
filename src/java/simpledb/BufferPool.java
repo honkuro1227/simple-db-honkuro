@@ -165,9 +165,12 @@ public class BufferPool {
         // not necessary for lab1|lab2
         lockManager.releaseTransactionLocks(tid);
         if (commit==true) {
-            flushPages(tid);
             for (Page page : cache.values()) {
+//                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
+                    flushPages(tid);
+//                    Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
                     page.setBeforeImage();
+//                }
             }
         }
         else{
@@ -303,6 +306,13 @@ public class BufferPool {
          * you should throw a DbException.
          */
         //No Steal, force policy
+        boolean isPageDirty =true;
+        int dirtyPageCount=0;
+        for (PageId key : cache.keySet()) {
+            if (cache.get(key).isDirty()!=null){
+                dirtyPageCount++;
+            }
+        }
 
         for (PageId key : cache.keySet()) {
             //flush all page
