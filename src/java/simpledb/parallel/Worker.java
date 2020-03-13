@@ -1,5 +1,6 @@
 package simpledb.parallel;
 
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -16,7 +17,7 @@ import simpledb.Operator;
 import simpledb.Database;
 import simpledb.OpIterator;
 import simpledb.QueryPlanVisualizer;
-
+import simpledb.*;
 import simpledb.parallel.Exchange.ParallelOperatorID;
 
 /**
@@ -55,15 +56,20 @@ public class Worker {
                 query = Worker.this.queryPlan;
                 // }
                 if (query != null) {
-                    // try {
-                    // some code goes here
-                    //} catch (DbException e1) {
-                    //    e1.printStackTrace();
-                    //} catch (TransactionAbortedException e1) {
-                    //    e1.printStackTrace();
-                    //} catch (InterruptedException e) {
-                    // e.printStackTrace();
-                    // }
+                     try {
+                     queryPlan.open();
+                     while(queryPlan.hasNext()){
+                         queryPlan.next();
+                     }
+                     queryPlan.close();
+                    } catch (DbException e1) {
+                        e1.printStackTrace();
+                    } catch (TransactionAbortedException e1) {
+                        e1.printStackTrace();
+                    }
+//                    catch (InterruptedException e) {
+//                     e.printStackTrace();
+//                     }
                     Worker.this.finishQuery();
                 }
 
@@ -132,7 +138,7 @@ public class Worker {
 
     public void start() throws IOException {
         acceptor.bind(new InetSocketAddress(host, port));
-
+        workingThread.start();
         // You need to implement for Lab 6: Make sure to start the worker thread.
     }
 
@@ -215,9 +221,25 @@ public class Worker {
      * information.
      * */
     public void localizeQueryPlan(OpIterator queryPlan) {
-        // some code goes here
+        if (queryPlan instanceof SeqScan) {
+            SeqScan seqScan = (SeqScan) queryPlan;
+            seqScan.reset(Database.getCatalog().getTableId(seqScan.getTableName()),
+                    seqScan.getAlias());
+        }
+        if (queryPlan instanceof Operator) {
+            if (queryPlan instanceof Producer) {
+                ((Producer) queryPlan).setThisWorker(this);
+            }
+            if (queryPlan instanceof Consumer) {
+                ((Consumer) queryPlan).setBuffer(inBuffer.get(((Consumer) queryPlan).getOperatorID()));
+            }
+            OpIterator[] children = ((Operator) queryPlan).getChildren();
+            for (OpIterator child : children) {
+                localizeQueryPlan(child);
+            }
+            ((Operator) queryPlan).setChildren(children);
+        }
     }
-
     /**
      * Find out all the ParallelOperatorIDs of all consuming operators:
      * ShuffleConsumer, CollectConsumer, and BloomFilterConsumer running at this
