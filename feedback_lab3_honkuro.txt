@@ -1,0 +1,16 @@
+honkuro
+
+Unit Test score: 45
+System Test score: 35
+Code score: 10
+Writeup score: 8
+Extra credit? no
+Total score: 98
+
+Code Feedback:
+Nice implementation of LockManager.
+
+Writeup Feedback:
+Very detailed description of various parts you have implemented in lab3!
+Missing design choices for locking granularity.
+Missing unit test.
