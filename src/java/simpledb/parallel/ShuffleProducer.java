@@ -1,30 +1,33 @@
 package simpledb.parallel;
 
-import simpledb.*;
-import simpledb.OpIterator;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.apache.mina.core.future.IoFutureListener;
 import org.apache.mina.core.future.WriteFuture;
 import org.apache.mina.core.session.IoSession;
+import simpledb.*;
+import simpledb.OpIterator;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * The producer part of the Shuffle Exchange operator.
- * 
+ *
  * ShuffleProducer distributes tuples to the workers according to some
  * partition function (provided as a PartitionFunction object during the
  * ShuffleProducer's instantiation).
- * 
+ * Anupam Gupta
  * */
 public class ShuffleProducer extends Producer {
 
     private static final long serialVersionUID = 1L;
+    private OpIterator child;
     private ParallelOperatorID operatorID;
     private SocketInfo[] workers;
-    private PartitionFunction<?,?> pf;
-    private OpIterator child;
+    private PartitionFunction<?, ?> pf;
     private WorkingThread runningThread;
+
     public String getName() {
         return "shuffle_p";
     }
@@ -32,133 +35,127 @@ public class ShuffleProducer extends Producer {
     public ShuffleProducer(OpIterator child, ParallelOperatorID operatorID,
                            SocketInfo[] workers, PartitionFunction<?, ?> pf) {
         super(operatorID);
-        // some code goes here
-        this.child=child;
-        this.operatorID=operatorID;
-        this.workers=workers;
-        this.pf=pf;
+        this.child = child;
+        this.operatorID = operatorID;
+        this.workers = workers;
+        this.pf = pf;
     }
 
     public void setPartitionFunction(PartitionFunction<?, ?> pf) {
-        // some code goes here
-        this.pf=pf;
+        this.pf = pf;
     }
 
     public SocketInfo[] getWorkers() {
-        // some code goes here
         return this.workers;
     }
 
     public PartitionFunction<?, ?> getPartitionFunction() {
-        // some code goes here
         return this.pf;
     }
 
+
     // some code goes here
     class WorkingThread extends Thread {
+        IoSession[] cosessions = new IoSession[workers.length];
+        Map<String, ArrayList<Tuple>> WorkerIdToBuffer = new HashMap<String, ArrayList<Tuple>>();
+        
         public void run() {
-            Map<String, IoSession> workerIdToSession = new HashMap<String, IoSession>();
-            Map<String, ArrayList<Tuple>> workerIdToBuffer=new HashMap<String, ArrayList<Tuple>>();
-            Map<String, Long> workerIdToLastTime =new HashMap<String,Long>();
-            // some code goes here
-            for(SocketInfo worker: workers){
-                workerIdToSession.put(worker.getId(), ParallelUtility.createSession(
-                        worker.getAddress(), getThisWorker().minaHandler, -1));
-                workerIdToBuffer.put(worker.getId(), new ArrayList<Tuple>());
-                workerIdToLastTime.put(worker.getId(), System.currentTimeMillis());
+            for(int i = 0; i <  workers.length; i++) {
+                IoSession session = ParallelUtility.createSession(workers[i].getAddress(), getThisWorker().minaHandler, -1);
+                WorkerIdToBuffer.put(workers[i].getId(), new ArrayList<Tuple>());
+                cosessions[i] = session;
             }
             try {
+                long latest = System.currentTimeMillis();
                 while (child.hasNext()) {
-                    Tuple tup = child.next();
-                    int partition = pf.partition(tup, child.getTupleDesc());
-                    SocketInfo consumerWorker = workers[partition];
-                    ArrayList<Tuple> buffer = workerIdToBuffer.get(consumerWorker.getId());
-                    IoSession session = workerIdToSession.get(consumerWorker.getId());
-                    long lastTime = workerIdToLastTime.get(consumerWorker.getId());
-                    buffer.add(tup);
+                    Tuple tuple = child.next();
+                    int partitionValue = pf.partition(tuple, getTupleDesc());
+                    SocketInfo consumerWorker = workers[partitionValue];
+                    ArrayList<Tuple> buffer = WorkerIdToBuffer.get(consumerWorker.getId());
+                    buffer.add(tuple);
+
                     if (buffer.size() >= TupleBag.MAX_SIZE) {
+                        IoSession session = cosessions[partitionValue];
                         session.write(new TupleBag(
                                 operatorID,
                                 getThisWorker().workerID,
-                                buffer.toArray(new Tuple[] {}),
-                                getTupleDesc()));
+                                buffer.toArray(new Tuple[]{}),
+                                getTupleDesc()
+                        ));
                         buffer.clear();
-                        lastTime = System.currentTimeMillis();
+                        latest = System.currentTimeMillis();
                     }
                     if (buffer.size() >= TupleBag.MIN_SIZE) {
-                        long thisTime = System.currentTimeMillis();
-                        if (thisTime - lastTime > TupleBag.MAX_MS) {
+                        long now = System.currentTimeMillis();
+                        if (now - latest > TupleBag.MAX_MS) {
+                            IoSession session = cosessions[partitionValue];
                             session.write(new TupleBag(
                                     operatorID,
                                     getThisWorker().workerID,
-                                    buffer.toArray(new Tuple[] {}),
-                                    getTupleDesc()));
+                                    buffer.toArray(new Tuple[]{}),
+                                    getTupleDesc()
+                            ));
                             buffer.clear();
-                            lastTime = thisTime;
+                            latest = now;
                         }
                     }
-                    workerIdToLastTime.put(consumerWorker.getId(), lastTime);
                 }
-                for (SocketInfo worker : workers) {
-                    ArrayList<Tuple> buffer = workerIdToBuffer.get(worker.getId());
-                    IoSession session = workerIdToSession.get(worker.getId());
-                    if (buffer.size() > 0) {
-                        session.write(new TupleBag(
+                IoFutureListener<WriteFuture> something = new IoFutureListener<WriteFuture>() {
+                    @Override
+                    public void operationComplete(WriteFuture ioFuture) {
+                        ParallelUtility.closeSession(ioFuture.getSession());
+                    }
+                };
+                for(int i = 0; i < workers.length; i++) {
+                    ArrayList<Tuple> buffer = WorkerIdToBuffer.get(workers[i].getId());
+                    if(buffer.size() > 0) {
+                        cosessions[i].write(new TupleBag(
                                 operatorID,
                                 getThisWorker().workerID,
-                                buffer.toArray(new Tuple[] {}),
-                                getTupleDesc()));
+                                buffer.toArray(new Tuple[]{}),
+                                getTupleDesc()
+                        ));
                     }
-                    session.write(new TupleBag(operatorID,
-                            getThisWorker().workerID)).addListener(new IoFutureListener<WriteFuture>(){
-                        @Override
-                        public void operationComplete(WriteFuture future) {
-                            ParallelUtility.closeSession(future.getSession());
-                        }});
+                    cosessions[i].write(new TupleBag(operatorID, getThisWorker().workerID)).addListener( something);
                 }
-            }
-            catch (DbException e) {
+            } catch (DbException e) {
                 e.printStackTrace();
+                System.out.println("DbException thrown by Shuffle Producer " + e.getLocalizedMessage());
             } catch (TransactionAbortedException e) {
                 e.printStackTrace();
+                System.out.println("TransactionAbortedException thrown by Shuffle Producer = " + e.getLocalizedMessage());
             }
         }
     }
 
-
     @Override
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+        this.child.open();
+        this.runningThread = new WorkingThread();
+        this.runningThread.run();
         super.open();
-        child.open();
-        runningThread = new WorkingThread();
-        System.out.println("Producer open " + this);
-        runningThread.run();
     }
 
     public void close() {
-        // some code goes here
         super.close();
         child.close();
     }
 
     @Override
     public void rewind() throws DbException, TransactionAbortedException {
-//        throw new UnsupportedOperationException();
         close();
         open();
     }
 
     @Override
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return child.getTupleDesc();
+        return this.child.getTupleDesc();
     }
 
     @Override
     protected Tuple fetchNext() throws DbException, TransactionAbortedException {
-        // some code goes here
         try {
+            // wait until the working thread terminate and return an empty tuple set
             runningThread.join();
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -168,13 +165,13 @@ public class ShuffleProducer extends Producer {
 
     @Override
     public OpIterator[] getChildren() {
-        // some code goes here
-        return new OpIterator[]{child};
+        return new OpIterator[]{this.child};
     }
 
     @Override
     public void setChildren(OpIterator[] children) {
-        // some code goes here
-        this.child=children[0];
+        if(this.child != children[0]) {
+            this.child = children[0];
+        }
     }
 }

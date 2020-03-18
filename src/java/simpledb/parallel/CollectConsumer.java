@@ -1,33 +1,35 @@
 package simpledb.parallel;
 
+
+import simpledb.*;
+import simpledb.parallel.CollectProducer;
+import simpledb.parallel.Consumer;
+import simpledb.parallel.SocketInfo;
+import simpledb.parallel.TupleBag;
+
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Iterator;
-import simpledb.DbException;
-import simpledb.OpIterator;
-import simpledb.TransactionAbortedException;
-import simpledb.Tuple;
-import simpledb.TupleDesc;
 
 /**
  * The consumer part of the Collect Exchange operator.
- * 
+ *
  * A Collect operator collects tuples from all the workers.
  * There is a collect producer on each worker, and a collect
  * consumer on the server and a master worker if a master worker
  * is needed.
- * 
+ *
  * The consumer passively collects Tuples from all the paired
  * CollectProducers
- * 
+ *
  * */
 public class CollectConsumer extends Consumer {
 
     private static final long serialVersionUID = 1L;
 
     private transient Iterator<Tuple> tuples;
-    
+
     /**
      * innerBufferIndex and innerBuffer are used to buffer
      * all the TupleBags this operator has received. We need
@@ -49,12 +51,12 @@ public class CollectConsumer extends Consumer {
     {
         return "collect_c";
     }
-    
+
     /**
      * If there's no child operator, a TupleDesc is needed
      * */
     public CollectConsumer(TupleDesc td, ParallelOperatorID operatorID,
-	    SocketInfo[] workers) {
+                           SocketInfo[] workers) {
         super(operatorID);
         this.td = td;
         this.sourceWorkers = workers;
@@ -80,7 +82,7 @@ public class CollectConsumer extends Consumer {
             this.workerIdToIndex.put(w.getId(), idx++);
         }
         this.workerEOS = new BitSet(workers.length);
-	
+
     }
 
     @Override

@@ -1,20 +1,26 @@
 package simpledb.parallel;
 
-import simpledb.*;
+import simpledb.Aggregate;
+import simpledb.Aggregator;
 import simpledb.Aggregator.Op;
 import simpledb.OpIterator;
+import simpledb.HashEquiJoin;
+import simpledb.Join;
+import simpledb.Operator;
+import simpledb.Rename;
+import simpledb.TransactionId;
 
 /**
  * Optimize aggregate operators of a parallel queryplan.
- * 
+ *
  * Each aggregate operator within an un-optimized parallel query plan will be
  * replaced by two aggregate operators, a down-stream aggregate operator and an
  * up-stream aggregate operator.
- * 
+ *
  * For example, max(column) will be replace by
- * 
+ *
  * max(column) -> (shuffle/collect) -> max(column)
- * 
+ *
  * In this way, the amount of data that need to be transmitted though network
  * will be minimized.
  * */
@@ -85,14 +91,35 @@ public class AggregateOptimizer extends ParallelQueryPlanOptimizer {
                 /**
                  * replace COUNT with COUNT -> SUM
                  * */
+                downAgg.setChildren(new OpIterator[]{downChildProcessed});
+                shuffleProducerOrCollectProducer.setChildren(new OpIterator[]{downAgg});
+                upAgg = new Aggregate(shuffleConsumerOrCollectConsumer,
+                        hasGroup ? 1 : 0,
+                        hasGroup ? 0 : Aggregator.NO_GROUPING,
+                        Op.SUM);
+                break;
             case COUNT:
                 // some code goes here
+                downAgg.setChildren(new OpIterator[]{downChildProcessed});
+                shuffleProducerOrCollectProducer
+                        .setChildren(new OpIterator[]{downAgg});
+                upAgg = new Aggregate(shuffleConsumerOrCollectConsumer,
+                        hasGroup ? 1 : 0,
+                        hasGroup ? 0: Aggregator.NO_GROUPING,
+                        Op.SUM);
                 break;
             /**
              * replace MIN with MIN -> MIN
              * */
             case MIN:
                 // some code goes here
+                downAgg.setChildren(new OpIterator[]{downChildProcessed});
+                shuffleProducerOrCollectProducer
+                        .setChildren(new OpIterator[]{downAgg});
+                upAgg = new Aggregate(shuffleConsumerOrCollectConsumer,
+                        hasGroup ? 1 : 0,
+                        hasGroup ? 0: Aggregator.NO_GROUPING,
+                        Op.MIN);
                 break;
             /**
              * replace MAX with MAX -> MAX
