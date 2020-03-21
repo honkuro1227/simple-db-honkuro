@@ -18,59 +18,44 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Catalog {
 
+    private Map<String, Integer> nameToId;
+    private Map<Integer, DbFile> idToFile;
+    private Map<Integer, String> idToPKey;
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
-    private ConcurrentHashMap<Integer,DBfileattributes> DBfileandID;
-    private ConcurrentHashMap<String,Integer> IDandname;
-
-    private class DBfileattributes{
-            private DbFile file;
-            private String name;
-            private String primarykey;
-            DBfileattributes(DbFile files,String name,String primarykey){
-                this.file=files;
-                this.name=name;
-                this.primarykey=primarykey;
-            }
-            public DbFile getFile(){
-                return this.file;
-            }
-            public String getName(){
-                return this.name;
-            }
-            public  String getPrimarykey(){
-                return this.primarykey;
-            }
-
-
-    }
     public Catalog() {
-        // some code goes here
-        DBfileandID=new ConcurrentHashMap<>();
-        IDandname=new ConcurrentHashMap<>();
+        nameToId = new HashMap<String, Integer>();
+        idToFile = new HashMap<Integer, DbFile>();
+        idToPKey = new HashMap<Integer, String>();
     }
 
     /**
      * Add a new table to the catalog.
      * This table's contents are stored in the specified DbFile.
-     * @param file the contents of the table to add;  file.getId() is the identfier of
+     * @param file the contents of the table to add;  file.getId() is the identifier of
      *    this file/tupledesc param for the calls getTupleDesc and getFile
      * @param name the name of the table -- may be an empty string.  May not be null.  If a name
      * conflict exists, use the last table to be added as the table for a given name.
      * @param pkeyField the name of the primary key field
      */
     public void addTable(DbFile file, String name, String pkeyField) {
-        // some code goes here
-        int id=file.getId();
-        if(DBfileandID.containsKey(id)){
-            DBfileandID.remove(id,DBfileandID.get(id));
-            IDandname.remove(name,id);
+        int id = file.getId();
+        if(idToFile.containsKey(id)) {
+            String nameToRemove = "";
+            for(Map.Entry<String, Integer> entry : nameToId.entrySet()) {
+                if(entry.getValue() == id) {
+                    nameToRemove = entry.getKey();
+                    break;
+                }
+            }
+            nameToId.remove(nameToRemove);
         }
-        DBfileattributes tp=new DBfileattributes(file,name,pkeyField);
-        DBfileandID.put(file.getId(),tp);
-        IDandname.put(name,id);
+        nameToId.put(name, id);
+
+        idToFile.put(id, file);
+        idToPKey.put(id, pkeyField);
     }
 
     public void addTable(DbFile file, String name) {
@@ -93,13 +78,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public int getTableId(String name) throws NoSuchElementException {
-        // some code goes here
-        if (name==null) throw new NoSuchElementException();
-        if(IDandname.containsKey(name)){
-            return IDandname.get(name);
-        }
-        throw new NoSuchElementException();
-
+       if(nameToId.containsKey(name)) {
+           return nameToId.get(name);
+       } else {
+           throw new NoSuchElementException("No Table with specified name found in catalog");
+       }
     }
 
     /**
@@ -109,13 +92,11 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-        // some code goes here
-        if(DBfileandID.containsKey(tableid)){
-            TupleDesc result=DBfileandID.get(tableid).getFile().getTupleDesc();
-            return result;
+        if(idToFile.containsKey(tableid)) {
+            return idToFile.get(tableid).getTupleDesc();
+        } else {
+            throw new NoSuchElementException("No Table with specified tableId found in catalog");
         }
-        throw new NoSuchElementException();
-
     }
 
     /**
@@ -125,39 +106,39 @@ public class Catalog {
      *     function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-        // some code goes here
-        if(DBfileandID.containsKey(tableid)){
-            return DBfileandID.get(tableid).getFile();
+        if(idToFile.containsKey(tableid)) {
+            return idToFile.get(tableid);
+        } else {
+            throw new NoSuchElementException("No table with specified tableId found in catalog");
         }
-        throw new NoSuchElementException();
-
     }
 
     public String getPrimaryKey(int tableid) {
-        // some code goes here
-
-        if(DBfileandID.containsKey(tableid)){
-            return DBfileandID.get(tableid).getPrimarykey();
+        if(idToPKey.containsKey(tableid)) {
+            return idToPKey.get(tableid);
+        } else {
+            throw new NoSuchElementException("No table with specified tableId found in catalog");
         }
-        throw new NoSuchElementException();
     }
 
     public Iterator<Integer> tableIdIterator() {
-        // some code goes here
-        return DBfileandID.keySet().iterator();
+        return idToFile.keySet().iterator();
     }
 
     public String getTableName(int id) {
-        // some code goes here
-        return  DBfileandID.get(id).getName();
+        for(Map.Entry<String, Integer> entry : nameToId.entrySet()) {
+            if(entry.getValue() == id) {
+                return entry.getKey();
+            }
+        }
+        throw new NoSuchElementException("No table with specified tableId found in catalog");
     }
     
     /** Delete all tables from the catalog */
     public void clear() {
-        // some code goes here
-
-        DBfileandID.clear();
-        IDandname.clear();
+        nameToId = new HashMap<String, Integer>();
+        idToFile = new HashMap<Integer, DbFile>();
+        idToPKey = new HashMap<Integer, String>();
     }
     
     /**
@@ -173,6 +154,7 @@ public class Catalog {
             while ((line = br.readLine()) != null) {
                 //assume line is of the format name (field type, field type, ...)
                 String name = line.substring(0, line.indexOf("(")).trim();
+                //System.out.println("TABLE NAME: " + name);
                 String fields = line.substring(line.indexOf("(") + 1, line.indexOf(")")).trim();
                 String[] els = fields.split(",");
                 ArrayList<String> names = new ArrayList<String>();

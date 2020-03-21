@@ -11,17 +11,18 @@ import java.io.*;
  * @see BufferPool
  *
  */
-public class HeapPage implements Page {
+public class HeapPage implements Page, Serializable {
 
     final HeapPageId pid;
     final TupleDesc td;
     final byte header[];
     final Tuple tuples[];
     final int numSlots;
+    boolean dirtyMarker;
 
     byte[] oldData;
+    TransactionId dirtyingTransaction;
     private final Byte oldDataLock=new Byte((byte)0);
-    private TransactionId Tid;
 
     /**
      * Create a HeapPage from a set of bytes of data read from disk.
@@ -43,13 +44,15 @@ public class HeapPage implements Page {
         this.pid = id;
         this.td = Database.getCatalog().getTupleDesc(id.getTableId());
         this.numSlots = getNumTuples();
+        dirtyMarker = false;
+        dirtyingTransaction = null;
         DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data));
 
         // allocate and read the header slots of this page
         header = new byte[getHeaderSize()];
         for (int i=0; i<header.length; i++)
             header[i] = dis.readByte();
-
+        
         tuples = new Tuple[numSlots];
         try{
             // allocate and read the actual records of this page
@@ -59,15 +62,17 @@ public class HeapPage implements Page {
             e.printStackTrace();
         }
         dis.close();
+
         setBeforeImage();
     }
 
     /** Retrieve the number of tuples on this page.
         @return the number of tuples on this page
     */
-    private int getNumTuples() {
-        // some code goes here
-        return (int) Math.floor((BufferPool.getPageSize()*8.0/(td.getSize()*8.0+1)));
+    private int getNumTuples() {        
+       int pageSize = BufferPool.getPageSize();
+       int tupleSize = this.td.getSize();
+       return (int)(Math.floor((pageSize * 8.0)/(tupleSize * 8.0 + 1)));
 
     }
 
@@ -75,13 +80,11 @@ public class HeapPage implements Page {
      * Computes the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
-    private int getHeaderSize() {
-
-        // some code goes here
-        return (int)Math.ceil(getNumTuples()/8.0);
-
+    private int getHeaderSize() {        
+        return (int)(Math.ceil(getNumTuples()/8.0));
+                 
     }
-
+    
     /** Return a view of this page before it was modified
         -- used by recovery */
     public HeapPage getBeforeImage(){
@@ -99,7 +102,7 @@ public class HeapPage implements Page {
         }
         return null;
     }
-
+    
     public void setBeforeImage() {
         synchronized(oldDataLock)
         {
@@ -111,8 +114,7 @@ public class HeapPage implements Page {
      * @return the PageId associated with this page.
      */
     public HeapPageId getId() {
-    // some code goes here
-    return this.pid;
+        return this.pid;
     }
 
     /**
@@ -196,7 +198,7 @@ public class HeapPage implements Page {
                 Field f = tuples[i].getField(j);
                 try {
                     f.serialize(dos);
-
+                
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -204,7 +206,7 @@ public class HeapPage implements Page {
         }
 
         // padding
-        int zerolen = BufferPool.getPageSize() - (header.length + td.getSize() * tuples.length); //- numSlots * td.getSize();
+        int zerolen = BufferPool.getPageSize() - (header.length + td.getSize() * tuples.length);
         byte[] zeroes = new byte[zerolen];
         try {
             dos.write(zeroes, 0, zerolen);
@@ -243,16 +245,12 @@ public class HeapPage implements Page {
      * @param t The tuple to delete
      */
     public void deleteTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
-
-        for (int i = 0; i < numSlots; ++i) {
-            if (isSlotUsed(i) && tuples[i].toString().equals(t.toString())) {
-                markSlotUsed(i, false);
-                return;
-            }
+        RecordId id = t.getRecordId();
+        int tupleNumber = id.getTupleNumber();
+        if(!isSlotUsed(tupleNumber) || !id.getPageId().equals(this.pid)) {
+            throw new DbException("Tuple not on this page OR Incorrect page for this tuple");
         }
-        throw new DbException("tuple not found");
+        markSlotUsed(tupleNumber, false);
     }
 
     /**
@@ -263,20 +261,18 @@ public class HeapPage implements Page {
      * @param t The tuple to add.
      */
     public void insertTuple(Tuple t) throws DbException {
-        // some code goes here
-        // not necessary for lab1
-        if (!td.equals(t.getTupleDesc())) {
-            throw new DbException("tuple description mimatched");
-        }
-        for (int i = 0; i < numSlots; ++i) {
-            if (!isSlotUsed(i)) {
-                markSlotUsed(i, true);
-                t.setRecordId(new RecordId(getId(), i));
-                tuples[i] = t;
-                return;
-            }
-        }
-        throw new DbException("no empty slots");
+       if(!this.td.equals(t.getTupleDesc()) || getNumEmptySlots() == 0) {
+           throw new DbException("Either no more space in this page or Tuple Descriptions don't match");
+       }
+       for(int i = 0; i < tuples.length; i ++) {
+           if(!isSlotUsed(i)) {
+               markSlotUsed(i, true);
+               tuples[i] = t;
+               RecordId id = new RecordId(this.pid, i);
+               t.setRecordId(id);
+               return;
+           }
+       }
     }
 
     /**
@@ -284,78 +280,110 @@ public class HeapPage implements Page {
      * that did the dirtying
      */
     public void markDirty(boolean dirty, TransactionId tid) {
-        // some code goes here
-	// not necessary for lab1
-        if(dirty){
-            Tid=tid;
+        this.dirtyMarker = dirty;
+        if(dirty) {
+            this.dirtyingTransaction = tid;
+        } else {
+            this.dirtyingTransaction = null;
         }
-        else{
-            Tid=null;
-        }
-
     }
 
     /**
      * Returns the tid of the transaction that last dirtied this page, or null if the page is not dirty
      */
     public TransactionId isDirty() {
-        // some code goes here
-	// Not necessary for lab1
-
-        return Tid;
+        return this.dirtyingTransaction;
     }
 
     /**
      * Returns the number of empty slots on this page.
      */
     public int getNumEmptySlots() {
-        // some code goes here
-        int count = header.length * 8;
-        for (int i = 0; i < header.length * 8; i++) {
-            if (isSlotUsed(i)) {
-                count--;
+        int countEmpty = 0;
+        for(int i = 0; i < header.length; i ++) {
+            Byte value = header[i];
+            for(int j = 0; j < 8; j++) {
+                if(getBitAtIndex(value, j) == 0) {
+                    countEmpty++;
+                }
             }
         }
-        return count;
+        return countEmpty;
+    }
+
+    private int getBitAtIndex(Byte value, int index) {
+        Byte copy = new Byte(value);
+        return (copy >> index) & 1;
     }
 
     /**
      * Returns true if associated slot on this page is filled.
      */
     public boolean isSlotUsed(int i) {
-        // some code goes here
-        int index=i/8;
-        int byteoffset=i%8;
-        int used=(header[index]>>byteoffset)&1;
-        return used == 1;
+       int headerSlotPosition = i/8;
+       return getBitAtIndex(header[headerSlotPosition], i % 8) == 1;
     }
 
     /**
      * Abstraction to fill or clear a slot on this page.
      */
     private void markSlotUsed(int i, boolean value) {
-        // some code goes here
-        // not necessary for lab1
-        if (value) {
-            header[i/8] |= (1<<(i % 8));
+        int headerSlotPosition = i/8;
+        if(value) {
+            header[headerSlotPosition] |= (1 << (i % 8));
         } else {
-            header[i/8] ^= (1<<(i % 8));
+            header[headerSlotPosition] &= ~(1 << (i % 8));
         }
     }
 
     /**
      * @return an iterator over all tuples on this page (calling remove on this iterator throws an UnsupportedOperationException)
-     *      * (note that this iterator shouldn't return tuples in empty slots!)
+     * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
-        // some code goes here
-        List<Tuple> Tuples=new ArrayList<Tuple>();
-        for(int i=0;i<numSlots;i++){
-            if(isSlotUsed(i)){
-                Tuples.add(tuples[i]);
-            }
-        }
-        return Tuples.iterator();
+       Iterator<Tuple> iterator = new Iterator<Tuple>() {
+
+           //Represents present headerIndex
+           private int headerIndex = 0;
+
+           //Represents slotNumber to look at next
+           private int slotNumber = 0;
+           @Override
+           public boolean hasNext() {
+               if(headerIndex >= header.length) {
+                   return false;
+               }
+               for(;;) {
+                   if (isSlotUsed(headerIndex * 8 + slotNumber)) {
+                       return true;
+                   } else {
+                       slotNumber++;
+                       if (slotNumber >= 8) {
+                           slotNumber = 0;
+                           headerIndex++;
+                       }
+                       if (headerIndex >= header.length) {
+                           return false;
+                       }
+                   }
+               }
+           }
+
+           @Override
+           public Tuple next() {
+                if(hasNext()) {
+                    int positionFromStart = headerIndex * 8 + slotNumber;
+                    slotNumber ++;
+                    if(slotNumber >= 8) {
+                        slotNumber = 0;
+                        headerIndex ++;
+                    }
+                    return tuples[positionFromStart];
+                }
+                throw new NoSuchElementException("No more elements to iterate through");
+           }
+       };
+       return iterator;
     }
 
 }

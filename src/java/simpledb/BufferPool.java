@@ -4,6 +4,7 @@ import javax.xml.crypto.Data;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map.Entry;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -105,10 +106,10 @@ public class BufferPool {
             evictPage();
         }
 
-            DbFile dbf= Database.getCatalog().getDatabaseFile(pid.getTableId());
-            Page page = dbf.readPage(pid);
-            cache.put(pid, page);
-            return page;
+        DbFile dbf= Database.getCatalog().getDatabaseFile(pid.getTableId());
+        Page page = dbf.readPage(pid);
+        cache.put(pid, page);
+        return page;
 
     }
 
@@ -159,28 +160,26 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      * @param commit a flag indicating whether we should commit or abort
      */
-    public void transactionComplete(TransactionId tid, boolean commit)
+    public synchronized void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
-        lockManager.releaseTransactionLocks(tid);
-        if (commit==true) {
-            for (Page page : cache.values()) {
-//                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
-                    flushPages(tid);
-//                    Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
-                    page.setBeforeImage();
-//                }
+        if (commit) {
+            for (Entry<PageId, Page> entry : cache.entrySet()) {
+                if (holdsLock(tid, entry.getKey())) {
+                    flushPage(entry.getKey());
+                    entry.getValue().setBeforeImage();
+                }
+            }
+        } else {
+            for (Entry<PageId, Page> entry : cache.entrySet()) {
+                if (entry.getValue().isDirty() != null && entry.getValue().isDirty().equals(tid)) {
+                    Page returned = Database.getCatalog().getDatabaseFile(entry.getKey().getTableId()).readPage(entry.getKey());
+                    returned.markDirty(false, null);
+                    cache.put(entry.getKey(), returned);
+                }
             }
         }
-        else{
-            for (Page page : cache.values()) {
-                //lab3
-//                if(page.isDirty()!=null&&page.isDirty().equals(tid)){
-                    cache.put(page.getId(),page.getBeforeImage());
-//                }
-            }
-        }
+        this.lockManager.releaseTransactionLocks(tid);
+
     }
 
     /**
@@ -316,13 +315,13 @@ public class BufferPool {
 
         for (PageId key : cache.keySet()) {
             //flush all page
-                try{
-                    flushPage(key);
-                    cache.remove(key);
-                }
-                catch (IOException e){
-                    e.printStackTrace();
-                }
+            try{
+                flushPage(key);
+                cache.remove(key);
+            }
+            catch (IOException e){
+                e.printStackTrace();
+            }
 
         }
     }

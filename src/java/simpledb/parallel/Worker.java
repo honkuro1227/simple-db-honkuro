@@ -49,14 +49,14 @@ public class Worker {
                 query = Worker.this.queryPlan;
                 // }
                 if (query != null) {
-                     try {
-                    // some code goes here
-                         if(query instanceof CollectProducer) {
-                             CollectProducer tp=(CollectProducer) query;
-                             tp.open();
-                             tp.fetchNext();
-                             tp.close();
-                         }
+                    try {
+                        // some code goes here
+                        if(query instanceof CollectProducer) {
+                            CollectProducer tp=(CollectProducer) query;
+                            tp.open();
+                            tp.fetchNext();
+                            tp.close();
+                        }
                     } catch (DbException e1) {
                         e1.printStackTrace();
                     } catch (TransactionAbortedException e1) {

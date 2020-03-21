@@ -136,18 +136,13 @@ public class Utility {
         Database.getCatalog().addTable(hf, UUID.randomUUID().toString());
         return hf;
     }
-
-    public static HeapFile openHeapFile(int cols, String colPrefix, File f, TupleDesc td) {
-        // create the HeapFile and add it to the catalog
-        HeapFile hf = new HeapFile(f, td);
-        Database.getCatalog().addTable(hf, UUID.randomUUID().toString());
-        return hf;
-    }
     
     public static HeapFile openHeapFile(int cols, String colPrefix, File f) {
         // create the HeapFile and add it to the catalog
     	TupleDesc td = getTupleDesc(cols, colPrefix);
-    	return openHeapFile(cols, colPrefix, f, td);
+        HeapFile hf = new HeapFile(f, td);
+        Database.getCatalog().addTable(hf, UUID.randomUUID().toString());
+        return hf;
     }
 
     public static String listToString(ArrayList<Integer> list) {

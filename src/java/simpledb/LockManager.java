@@ -158,9 +158,9 @@ public class LockManager {
     }
 
     /**
-        get the all Lockprofile by pid, and return the lockprofile.
-        if transactionId do not contain lock page, it will skip the lock.
-        else return null if cannot find lock page does not exist.
+     get the all Lockprofile by pid, and return the lockprofile.
+     if transactionId do not contain lock page, it will skip the lock.
+     else return null if cannot find lock page does not exist.
      */
     public synchronized LockProfile getLockProfile(TransactionId tid, PageId pid) {
         if (lockprofileMap.get(pid) == null || lockprofileMap.get(pid).size() == 0) {
@@ -191,7 +191,7 @@ public class LockManager {
         return pids;
     }
 }
- class LockProfile {
+class LockProfile {
     private TransactionId tid;
     private Permissions perm;
     public LockProfile(TransactionId tid, Permissions perm) {

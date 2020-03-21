@@ -1,10 +1,13 @@
 package simpledb;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /** Unique identifier for HeapPage objects. */
-public class HeapPageId implements PageId {
+public class HeapPageId implements PageId, Serializable {
 
+    private int tableId;
+    private int pgNo;
     /**
      * Constructor. Create a page id structure for a specific page of a
      * specific table.
@@ -12,18 +15,14 @@ public class HeapPageId implements PageId {
      * @param tableId The table that is being referenced
      * @param pgNo The page number in that table.
      */
-    private int PageNo;
-    private int Tableid;
     public HeapPageId(int tableId, int pgNo) {
-        // some code goes here
-        PageNo=pgNo;
-        Tableid=tableId;
+        this.tableId = tableId;
+        this.pgNo = pgNo;
     }
 
     /** @return the table associated with this PageId */
     public int getTableId() {
-        // some code goes here
-        return Tableid;
+       return this.tableId;
     }
 
     /**
@@ -31,8 +30,7 @@ public class HeapPageId implements PageId {
      *   this PageId
      */
     public int getPageNumber() {
-        // some code goes here
-        return PageNo;
+        return this.pgNo;
     }
 
     /**
@@ -42,8 +40,7 @@ public class HeapPageId implements PageId {
      * @see BufferPool
      */
     public int hashCode() {
-        // some code goes here
-       return this.getTableId()+this.getPageNumber();
+        return Objects.hash(pgNo, tableId);
     }
 
     /**
@@ -54,14 +51,20 @@ public class HeapPageId implements PageId {
      *   ids are the same)
      */
     public boolean equals(Object o) {
-        // some code goes here
-        if(o==null||o.getClass()!=getClass())return false;
-        if(o instanceof HeapPageId){
-            HeapPageId cp= (HeapPageId) o;
-                return Objects.equals(this.getTableId(),cp.getTableId())&& Objects.equals(this.getPageNumber(),cp.getPageNumber());
+        if(o == this)
+            return true;
+        if(o == null && this == null) {
+            return true;
+        } else if ((o == null && this != null) || (o != null && this == null)) {
+            return false;
         }
-        return false;
+        if(!(o instanceof HeapPageId)) {
+            return false;
+        }
+        HeapPageId received = (HeapPageId) o;
+        return (received.tableId == this.tableId) && (received.pgNo == this.pgNo);
     }
+
     /**
      *  Return a representation of this object as an array of
      *  integers, for writing to disk.  Size of returned array must contain

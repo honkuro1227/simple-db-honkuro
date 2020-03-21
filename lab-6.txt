@@ -1,0 +1,5 @@
+Please report the execution time when using 1, 2, and 4 workers. 
+To change the number of worker processes, you need to edit the file conf/workers.conf. Do not worry about having good or bad performance.
+Simply tell us what you see and reflect on what you see in your lab write-up.
+Please report the execution time when using 1, 2, and 4 workers.
+Also comment of the performance of your system generally. Do you observe the speedup you would expect when increasing the number of nodes?

@@ -58,7 +58,7 @@ public class ShuffleProducer extends Producer {
     class WorkingThread extends Thread {
         IoSession[] cosessions = new IoSession[workers.length];
         Map<String, ArrayList<Tuple>> WorkerIdToBuffer = new HashMap<String, ArrayList<Tuple>>();
-        
+
         public void run() {
             for(int i = 0; i <  workers.length; i++) {
                 IoSession session = ParallelUtility.createSession(workers[i].getAddress(), getThisWorker().minaHandler, -1);

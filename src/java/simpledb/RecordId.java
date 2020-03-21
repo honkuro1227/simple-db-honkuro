@@ -1,7 +1,6 @@
 package simpledb;
 
 import java.io.Serializable;
-import java.util.Objects;
 
 /**
  * A RecordId is a reference to a specific tuple on a specific page of a
@@ -10,8 +9,9 @@ import java.util.Objects;
 public class RecordId implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private int tupleno;
-    private PageId pid;
+
+    private PageId pageId;
+    private int tupleNumber;
     /**
      * Creates a new RecordId referring to the specified PageId and tuple
      * number.
@@ -22,25 +22,22 @@ public class RecordId implements Serializable {
      *            the tuple number within the page.
      */
     public RecordId(PageId pid, int tupleno) {
-        // some code goes here
-        this.pid=pid;
-        this.tupleno=tupleno;
+       this.pageId = pid;
+       this.tupleNumber = tupleno;
     }
 
     /**
      * @return the tuple number this RecordId references.
      */
     public int getTupleNumber() {
-        // some code goes here
-        return this.tupleno;
+        return this.tupleNumber;
     }
 
     /**
      * @return the page id this RecordId references.
      */
     public PageId getPageId() {
-        // some code goes here
-        return this.pid;
+        return this.pageId;
     }
 
     /**
@@ -51,12 +48,18 @@ public class RecordId implements Serializable {
      */
     @Override
     public boolean equals(Object o) {
-        // some code goes here
-        if(o==null||o.getClass()!=getClass()) return false;
-        if(!(o instanceof RecordId)) return false;
-        RecordId cp=(RecordId) o;
-        return Objects.equals(cp.getPageId(),this.getPageId()) && Objects.equals(cp.getTupleNumber(),this.getTupleNumber());
-
+        if(o == this)
+            return true;
+        if(o == null && this == null) {
+            return true;
+        } else if ((o == null && this != null) || (o != null && this == null)) {
+            return false;
+        }
+        if(!(o instanceof RecordId)) {
+            return false;
+        }
+        RecordId received = (RecordId) o;
+        return (this.tupleNumber == received.tupleNumber) && (this.pageId.equals(received.pageId));
     }
 
     /**
@@ -67,8 +70,7 @@ public class RecordId implements Serializable {
      */
     @Override
     public int hashCode() {
-        // some code goes here
-        return this.getTupleNumber()+this.getPageId().hashCode();
+        return this.pageId.hashCode() * this.tupleNumber;
 
     }
 

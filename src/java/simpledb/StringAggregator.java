@@ -1,21 +1,24 @@
 package simpledb;
-
-import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.HashMap;
-
+import java.util.NoSuchElementException;
 
 /**
  * Knows how to compute some aggregate over a set of StringFields.
  */
 public class StringAggregator implements Aggregator {
 
+    private int gbfield;
+    private Type gbfieldtype;
+    private int afield;
+    private Op what;
+    String aggregateColumn;
+    Map<Field, Integer> storage;
+    int count;
+    TupleDesc desc;
+    Tuple tuple;
     private static final long serialVersionUID = 1L;
-    private final int gbfield;
-    private final Type gbfieldtype;
-    private final int afield;
-    private final Op what;
-    private final HashMap<Field, Integer> map;
-    private String NameofGroupField;
 
     /**
      * Aggregate constructor
@@ -26,16 +29,33 @@ public class StringAggregator implements Aggregator {
      * @throws IllegalArgumentException if what != COUNT
      */
 
-    public StringAggregator(int gbfield, Type gbfieldtype, int afield, Op what)
-            throws IllegalArgumentException{
-        if (what != Op.COUNT) {
-            throw new IllegalArgumentException();
-        }
+    public StringAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
         this.gbfield = gbfield;
         this.gbfieldtype = gbfieldtype;
         this.afield = afield;
         this.what = what;
-        this.map = new HashMap<Field, Integer>();
+        count = 0;
+        storage = new HashMap<Field, Integer>();
+        if(what != Op.COUNT) {
+            throw new IllegalArgumentException("Only supports Count");
+        }
+        if(gbfield != NO_GROUPING) {
+            Type[] array = new Type[2];
+            array[0] = gbfieldtype;
+            array[1] = Type.INT_TYPE;
+            String[] nameArray = new String[2];
+            nameArray[0] = "Group Value";
+            nameArray[1] = what.toString() + "(" + aggregateColumn + ")";
+            desc = new TupleDesc(array, nameArray);
+            tuple = new Tuple(desc);
+        } else {
+            Type[] array = new Type[1];
+            array[0] = Type.INT_TYPE;
+            String[] nameArray = new String[1];
+            nameArray[0] = what.toString() + "(" + aggregateColumn + ")";
+            desc = new TupleDesc(array, nameArray);
+            tuple = new Tuple(desc);
+        }
     }
 
     /**
@@ -43,10 +63,16 @@ public class StringAggregator implements Aggregator {
      * @param tup the Tuple containing an aggregate field and a group-by field
      */
     public void mergeTupleIntoGroup(Tuple tup) {
-        if(gbfield!=NO_GROUPING){
-            NameofGroupField = tup.getTupleDesc().getFieldName(gbfield);
-            Field groupField = tup.getField(gbfield);
-            map.merge(groupField,1,Integer::sum);
+        aggregateColumn = tup.getTupleDesc().getFieldName(this.afield);
+        if(gbfield != NO_GROUPING) {
+            Field groupBy = tup.getField(this.gbfield);
+            if(!storage.containsKey(groupBy)) {
+                storage.put(groupBy, 1);
+            } else {
+                storage.put(groupBy, storage.get(groupBy) + 1);
+            }
+        } else {
+            count ++;
         }
     }
 
@@ -58,25 +84,70 @@ public class StringAggregator implements Aggregator {
      *   grouping. The aggregateVal is determined by the type of
      *   aggregate specified in the constructor.
      */
-
     public OpIterator iterator() {
-        if (gbfield != NO_GROUPING) {
-            TupleDesc tupleDesc = new TupleDesc(new Type[]{gbfieldtype, Type.INT_TYPE}, new String[]{NameofGroupField, what.toString()});
-            ArrayList<Tuple> tuples = new ArrayList<Tuple>();
-            for (Field group : map.keySet()) {
-                Tuple tuple = new Tuple(tupleDesc);
-                tuple.setField(0, group);
-                tuple.setField(1, new IntField(map.get(group)));
-                tuples.add(tuple);
+        return new OpIterator() {
+            Boolean returned;
+            Iterator<Field> iterator;
+            Boolean openFlag = false;
+            @Override
+            public void open() throws DbException, TransactionAbortedException {
+                openFlag = true;
+                returned = false;
+                if(gbfield != NO_GROUPING) {
+                    iterator = storage.keySet().iterator();
+                }
             }
-            return new TupleIterator(tupleDesc, tuples);
-        } else {
-            TupleDesc tupleDesc = new TupleDesc(new Type[]{Type.INT_TYPE}, new String[]{what.toString()});
-            Tuple tuple = new Tuple(tupleDesc);
-            ArrayList<Tuple> tuples = new ArrayList<Tuple>();
-            tuples.add(tuple);
-            return new TupleIterator(tupleDesc, tuples);
-        }
+
+            @Override
+            public boolean hasNext() throws DbException, TransactionAbortedException {
+                if(!openFlag) {
+                    return false;
+                }
+                if(gbfield != NO_GROUPING) {
+                    return !returned;
+                } else {
+                    return iterator.hasNext();
+                }
+            }
+
+            @Override
+            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+                if(hasNext()) {
+                    if (gbfield != NO_GROUPING) {
+                        Field key = iterator.next();
+                        int value = storage.get(key);
+                        tuple.setField(0, key);
+                        tuple.setField(1, new IntField(value));
+                    } else {
+                        tuple.setField(0, new IntField(count));
+                        returned = true;
+                    }
+                    return tuple;
+                } else {
+                    throw new NoSuchElementException("No more values to return");
+                }
+            }
+
+            @Override
+            public void rewind() throws DbException, TransactionAbortedException {
+                returned = false;
+                iterator = storage.keySet().iterator();
+            }
+
+            @Override
+            public TupleDesc getTupleDesc() {
+                return desc;
+            }
+
+            @Override
+            public void close() {
+                returned = false;
+                iterator = null;
+                desc = null;
+                tuple = null;
+                openFlag = false;
+            }
+        };
     }
 
 }
