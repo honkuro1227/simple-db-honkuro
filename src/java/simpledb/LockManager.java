@@ -1,214 +1,211 @@
 package simpledb;
-import java.security.Permission;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
+import java.util.Map.Entry;
 
+//Anupam Gupta
 public class LockManager {
-    private ConcurrentHashMap<PageId, List<LockProfile>> lockprofileMap;
-    private ConcurrentHashMap<TransactionId, PageId> waitinglist;
+
+    Map<PageId, TransactionId> exclusiveLock;
+    Map<PageId, Set<TransactionId>> readLock;
+    Map<TransactionId, Set<TransactionId>> dependencyMapping;
+
     public LockManager() {
-        lockprofileMap = new ConcurrentHashMap<>();
-        waitinglist = new ConcurrentHashMap<>();
+        exclusiveLock = new HashMap<PageId, TransactionId>();
+        readLock = new HashMap<PageId, Set<TransactionId>>();
+        dependencyMapping = new HashMap<TransactionId, Set<TransactionId>>();
     }
 
-    public synchronized boolean grantRlock(TransactionId tid, PageId pid) {
-        ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
-        if (list != null && list.size() != 0) {
-            if (list.size() != 1)  {
-                for (LockProfile lp : list) {
-                    if (lp.getPerm() == Permissions.READ_WRITE) {
-                        return lp.getTid().equals(tid) || wait(tid, pid);
-                    } else if (lp.getTid().equals(tid)) {
-                        return true;
-                    }
-                }
-                return lock(pid, tid, Permissions.READ_ONLY);
+    public synchronized void releaseTransaction(TransactionId tid) {
+        Set<PageId> toRelease = new HashSet<PageId>();
+        for(PageId pageId : exclusiveLock.keySet()) {
+            if(exclusiveLock.get(pageId).equals(tid)) {
+                toRelease.add(pageId);
             }
-            else {
-                LockProfile lp = list.iterator().next();
-                if (lp.getTid().equals(tid)) {
-                    if(lp.getPerm()== Permissions.READ_ONLY){
-                        return true;
-                    }
-                    else{
-                        return lock(pid, tid, Permissions.READ_ONLY);
-                    }
+        }
+        for(PageId pageId: toRelease) {
+            exclusiveLock.remove(pageId);
+        }
+        for(PageId pageId: readLock.keySet()) {
+            Set<TransactionId> storeValues = readLock.get(pageId);
+            storeValues.remove(tid);
+            readLock.put(pageId, storeValues);
+        }
+    }
+
+    public synchronized boolean getReadLock(PageId pageId, TransactionId transactionId) throws TransactionAbortedException {
+        if(exclusiveLock.containsKey(pageId)) {
+            if(transactionId.equals(exclusiveLock.get(pageId))) {
+                if(readLock.containsKey(pageId)) {
+                    Set<TransactionId> valueStored = readLock.get(pageId);
+                    valueStored.add(transactionId);
+
+                    readLock.put(pageId, valueStored);
                 } else {
-                    if (lp.getPerm()== Permissions.READ_ONLY){
-                        return lock(pid, tid, Permissions.READ_ONLY);
-                    }
-                    else{
-                        return wait(tid,pid);
-                    }
-                }
-            }
-        }
-        else {
-            return lock(pid, tid, Permissions.READ_ONLY);
-        }
-    }
+                    HashSet<TransactionId> insertion = new HashSet<TransactionId>();
+                    insertion.add(transactionId);
 
-    public synchronized boolean grantWlock(TransactionId tid, PageId pid) {
-        ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
-        if (list != null && list.size() != 0) {
-            if (list.size() == 1) {
-                LockProfile lp = list.iterator().next();
-                if(lp.getTid().equals(tid)){
-                    return lp.getPerm()== Permissions.READ_ONLY||lock(pid,tid,Permissions.READ_WRITE);
+                    readLock.put(pageId, insertion);
                 }
-                else{
-                    return wait(tid,pid);
+                return true;
+            } else {
+                if(!addToDependencyMapping(exclusiveLock.get(pageId), transactionId)) {
+                    throw new TransactionAbortedException();
                 }
-            }
-            else {
-                if (list.size() == 2) {
-                    for (LockProfile lp : list) {
-                        if (lp.getTid().equals(tid) && lp.getPerm() == Permissions.READ_WRITE) {
-                            return true;
-                        }
-                    }
-                }
-                return wait(tid, pid);
+                return false;
             }
         } else {
-            return lock(pid, tid, Permissions.READ_WRITE);
+            if(readLock.containsKey(pageId)) {
+                Set<TransactionId> valueStored = readLock.get(pageId);
+                valueStored.add(transactionId);
+
+                readLock.put(pageId, valueStored);
+            } else {
+                HashSet<TransactionId> insertion = new HashSet<TransactionId>();
+                insertion.add(transactionId);
+
+                readLock.put(pageId, insertion);
+            }
+            return true;
         }
     }
 
-    private synchronized boolean lock(PageId pid, TransactionId tid, Permissions perm) {
-        LockProfile lock = new LockProfile(tid, perm);
-        ArrayList<LockProfile> list = (ArrayList<LockProfile>) lockprofileMap.get(pid);
-        if (list == null) {
-            list = new ArrayList<>();
+    public synchronized void removeFromDependency(TransactionId transactionId) {
+        dependencyMapping.remove(transactionId);
+        for(Entry<TransactionId, Set<TransactionId>> entry: dependencyMapping.entrySet()) {
+            Set<TransactionId> valueStored = entry.getValue();
+            valueStored.remove(transactionId);
+            dependencyMapping.put(entry.getKey(), valueStored);
         }
-        list.add(lock);
-        lockprofileMap.put(pid, list);
-        waitinglist.remove(tid);
+    }
+
+    public synchronized boolean releaseReadLock(PageId pageId, TransactionId transactionId) {
+        if(readLock.containsKey(pageId)) {
+            Set<TransactionId> storeValues = readLock.get(pageId);
+            storeValues.remove(transactionId);
+
+            readLock.put(pageId, storeValues);
+        }
         return true;
     }
 
-
-    private synchronized boolean wait(TransactionId tid, PageId pid) {
-        waitinglist.put(tid, pid);
-        return false;
-    }
-
-    public synchronized boolean unlock(TransactionId tid, PageId pid) {
-        if (lockprofileMap.get(pid) == null || lockprofileMap.get(pid).size() == 0) return false;
-        ArrayList<LockProfile> list =new ArrayList<>();
-        list.addAll(lockprofileMap.get(pid));
-        LockProfile lp = getLockProfile(tid, pid);
-        if (lp == null) return false;
-        list.remove(lp);
-        lockprofileMap.put(pid, list);
-        return true;
-    }
-
-    public synchronized void releaseTransactionLocks(TransactionId tid) {
-        List<PageId> toRelease = getAllLocksByTid(tid);
-        for (PageId pid : toRelease) {
-            unlock(tid, pid);
-        }
-    }
-
-    public synchronized boolean deadlockOccurred(TransactionId tid, PageId pid) {
-        List<LockProfile> holdlocks = lockprofileMap.get(pid);
-        if (holdlocks == null || holdlocks.size() == 0) {
-            return false;
-        }
-        List<PageId> pids = getAllLocksByTid(tid);
-        for (LockProfile Lp : holdlocks) {
-            TransactionId holder = Lp.getTid();
-            if (!holder.equals(tid)) {
-                boolean isWaiting = isWaitingResources(holder, pids, tid);
-                if (isWaiting) {
+    public synchronized boolean identifyDeadLock(TransactionId transactionId, PageId pageId) {
+        if(exclusiveLock.containsKey(pageId) && !exclusiveLock.get(pageId).equals(transactionId)) {
+            // some other transaction has an exclusive lock on the page I want.
+            // deadlock if I have an exclusive lock on some page the same transaction wants
+            if(dependencyMapping.containsKey(transactionId)) {
+                Set<TransactionId> transactionsWaitingOnMe = dependencyMapping.get(transactionId);
+                if(transactionsWaitingOnMe.contains(exclusiveLock.get(pageId))) {
                     return true;
                 }
             }
+            TransactionId holdingLock = exclusiveLock.get(pageId);
+            Set<TransactionId> transactionSet = new HashSet<TransactionId>();
+            if(dependencyMapping.containsKey(holdingLock)) {
+                transactionSet = dependencyMapping.get(holdingLock);
+                transactionSet.add(transactionId);
+            }
+            dependencyMapping.put(holdingLock, transactionSet);
         }
         return false;
     }
 
-    /**
-     check whether lock impacts the process.
-     */
-    private synchronized boolean isWaitingResources(TransactionId tid, List<PageId> pids, TransactionId toRemove) {
-        PageId waitingPage = waitinglist.get(tid);
-        if (waitingPage == null) {
+    public synchronized boolean addToDependencyMapping(TransactionId toAddTo, TransactionId transactionId) {
+        if(identifyDeadLockExists(transactionId, toAddTo)) {
             return false;
         }
+        if(!dependencyMapping.containsKey(toAddTo)) {
+            dependencyMapping.put(toAddTo, new HashSet<TransactionId>());
+        }
+        Set<TransactionId> transactionIds = dependencyMapping.get(toAddTo);
+        transactionIds.add(transactionId);
+        dependencyMapping.put(toAddTo, transactionIds);
+        return true;
+    }
 
-        for (PageId pid : pids) {
-            if (pid.equals(waitingPage)) {
+    public synchronized boolean identifyDeadLockExists(TransactionId first, TransactionId second) {
+        if(dependencyMapping.containsKey(first)) {
+            Set<TransactionId> transactionsWaitingOnMe = dependencyMapping.get(first);
+            if(transactionsWaitingOnMe.contains(second)) {
                 return true;
             }
         }
-
-        List<LockProfile> holders = lockprofileMap.get(waitingPage);
-        if (holders == null || holders.size() == 0) return false;
-        for (LockProfile lp : holders) {
-            TransactionId holder = lp.getTid();
-            if (!holder.equals(toRemove)) {
-                boolean isWaiting = isWaitingResources(holder, pids, toRemove);
-                if (isWaiting) return true;
-            }
-        }
         return false;
     }
 
-    /**
-     get the all Lockprofile by pid, and return the lockprofile.
-     if transactionId do not contain lock page, it will skip the lock.
-     else return null if cannot find lock page does not exist.
-     */
-    public synchronized LockProfile getLockProfile(TransactionId tid, PageId pid) {
-        if (lockprofileMap.get(pid) == null || lockprofileMap.get(pid).size() == 0) {
-            return null;
-        }
-        ArrayList<LockProfile> list=new ArrayList<>();
-        list.addAll(lockprofileMap.get(pid));
-        for (LockProfile lockprofile : list) {
-            if (lockprofile.getTid().equals(tid)) {
-                return lockprofile;
+    public synchronized boolean getExclusiveLock(PageId pageId, TransactionId transactionId) throws TransactionAbortedException{
+        if(exclusiveLock.containsKey(pageId) && (!exclusiveLock.get(pageId).equals(transactionId))) {
+            if(!addToDependencyMapping(exclusiveLock.get(pageId), transactionId)) {
+                throw new TransactionAbortedException();
             }
+            return false;
         }
-        return null;
-    }
+        //If read lock exists do further checking otherwise just allow the exclusive lock since it's not read locked
+        if(readLock.containsKey(pageId)) {
+            //If read lock holds empty set or the only read lock is by the same transaction then it's okay allow
+            // the exclusive lock
+            Set<TransactionId> returnValue = readLock.get(pageId);
+            if(returnValue.size() != 0) {
+                if(returnValue.size() == 1) {
+                    if(returnValue.contains(transactionId)) {
+                        if(identifyDeadLock(transactionId, pageId)) {
+                            throw new TransactionAbortedException();
+                        }
 
-    /**
-     * get all locks of tid
-     */
-    private synchronized List<PageId> getAllLocksByTid(TransactionId tid) {
-        ArrayList<PageId> pids = new ArrayList<>();
-        for (PageId pid : lockprofileMap.keySet()){
-            for(LockProfile lp: lockprofileMap.get(pid)){
-                if (lp.getTid().equals(tid)) {
-                    pids.add(pid);
+                        exclusiveLock.put(pageId, transactionId);
+                        return true;
+                    } else {
+                        if(!addToDependencyMapping(readLock.get(pageId).iterator().next(), transactionId)) {
+                            throw new TransactionAbortedException();
+                        }
+                        return false;
+                    }
+                } else {
+                    Iterator<TransactionId> iterator = readLock.get(pageId).iterator();
+                    while(iterator.hasNext()) {
+                        if(!addToDependencyMapping(iterator.next(), transactionId)) {
+                            throw new TransactionAbortedException();
+                        }
+                    }
+                    return false;
                 }
+            } else {
+                if(identifyDeadLock(transactionId, pageId)) {
+                    throw new TransactionAbortedException();
+                }
+
+                exclusiveLock.put(pageId, transactionId);
+                return true;
             }
+        } else {
+            if(identifyDeadLock(transactionId, pageId)) {
+                throw new TransactionAbortedException();
+            }
+
+            exclusiveLock.put(pageId, transactionId);
+            return true;
         }
-        return pids;
-    }
-}
-class LockProfile {
-    private TransactionId tid;
-    private Permissions perm;
-    public LockProfile(TransactionId tid, Permissions perm) {
-        this.tid = tid;
-        this.perm = perm;
     }
 
-    public TransactionId getTid() {
-        return tid;
-    }
-    public Permissions getPerm() {
-        return perm;
+    public synchronized boolean releaseExclusiveLock(PageId pageId, TransactionId transactionId) {
+        if(exclusiveLock.containsKey(pageId)) {
+            if(exclusiveLock.get(pageId).equals(transactionId)) {
+
+                exclusiveLock.remove(pageId);
+                return true;
+
+            } else {
+                return false;
+            }
+        } else {
+            return true;
+        }
     }
 
-    public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
-        LockProfile LockProfile = (LockProfile) o;
-        return tid.equals(LockProfile.tid) && perm.equals(LockProfile.perm);
+    public synchronized boolean hasReadLock(PageId pageId, TransactionId tid) {
+        return readLock.containsKey(pageId) && readLock.get(pageId).contains(tid);
+    }
+
+    public synchronized boolean hasExclusiveLock(PageId pageId, TransactionId transactionId) {
+        return exclusiveLock.containsKey(pageId) && exclusiveLock.get(pageId).equals(transactionId);
     }
 }

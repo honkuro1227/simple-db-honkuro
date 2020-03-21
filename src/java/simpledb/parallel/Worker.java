@@ -2,7 +2,12 @@ package simpledb.parallel;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.Queue;
+import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.mina.core.service.IoHandlerAdapter;
@@ -45,18 +50,18 @@ public class Worker {
         public void run() {
             while (true) {
                 OpIterator query = null;
-                // synchronized (Worker.this) {
+                //synchronized (Worker.this) {
                 query = Worker.this.queryPlan;
                 // }
                 if (query != null) {
-                    try {
-                        // some code goes here
-                        if(query instanceof CollectProducer) {
-                            CollectProducer tp=(CollectProducer) query;
-                            tp.open();
-                            tp.fetchNext();
-                            tp.close();
-                        }
+                     try {
+                       if(query instanceof CollectProducer) {
+                           CollectProducer query1 = (CollectProducer) query;
+                           query1.open();
+                           query1.fetchNext();
+                           query1.close();
+                       }
+
                     } catch (DbException e1) {
                         e1.printStackTrace();
                     } catch (TransactionAbortedException e1) {
@@ -67,6 +72,7 @@ public class Worker {
 
                 synchronized (Worker.this.workingThread) {
                     try {
+                        System.out.println("Waiting");
                         // wait until a query plan is received
                         Worker.this.workingThread.wait();
                     } catch (InterruptedException e) {
@@ -214,33 +220,39 @@ public class Worker {
      * */
     public void localizeQueryPlan(OpIterator queryPlan) {
         // some code goes here
-        this.queryPlan = queryPlan;
+        //System.out.println("Came to Localize Query Plan");
+        //System.out.println("queryPlan = " + queryPlan);
+        Worker.this.queryPlan = queryPlan;
         Queue<OpIterator> children = new LinkedList<OpIterator>();
         children.add(queryPlan);
-        while(!children.isEmpty()) {
-            OpIterator query = children.remove();
-            if(query instanceof Operator) {
-                Operator operator = (Operator) query;
-                OpIterator[] childrenArray = operator.getChildren();
-                int i = 0;
-                for(; i < childrenArray.length; i ++) {
-                    children.add(childrenArray[i]);
+        try {
+            while(!children.isEmpty()) {
+                OpIterator queryOption = children.remove();
+                if(queryOption instanceof SeqScan) {
+                    SeqScan sequential = (SeqScan) queryOption;
+
+                    String tableName = sequential.getTableName();
+                    int tableId = Database.getCatalog().getTableId(tableName);
+                    sequential.reset(tableId, sequential.getAlias());
+                } else if(queryOption instanceof Producer) {
+                    Producer producer = (Producer) queryOption;
+                    producer.setThisWorker(Worker.this);
+                } else if(queryOption instanceof Consumer) {
+                    Consumer consumer = (Consumer) queryOption;
+                    this.inBuffer.put(consumer.getOperatorID(), new LinkedBlockingQueue<ExchangeMessage>());
+                    consumer.setBuffer(inBuffer.get(consumer.getOperatorID()));
+                }
+                if(queryOption instanceof Operator) {
+                    Operator operator = (Operator) queryOption;
+                    OpIterator[] childrenArray = operator.getChildren();
+                    for(int i = 0; i < childrenArray.length; i ++) {
+                        children.add(childrenArray[i]);
+                    }
                 }
             }
-            if(query instanceof SeqScan) {
-                SeqScan seqScan = (SeqScan) query;
-                seqScan.reset(Database.getCatalog().getTableId(seqScan.getTableName()),
-                        seqScan.getAlias());
-            } else if(query instanceof Producer) {
-                Producer producer = (Producer) query;
-                producer.setThisWorker(Worker.this);
-            } else if(query instanceof Consumer) {
-                Consumer consumer = (Consumer) query;
-                consumer.setBuffer(inBuffer.get(consumer.getOperatorID()));
-            }
-
+        } catch(Exception e) {
+            System.out.println("Error thrown at Localize Query plan " + e.getLocalizedMessage());
         }
-
     }
 
     /**
@@ -253,9 +265,11 @@ public class Worker {
                                                   ArrayList<ParallelOperatorID> oIds) {
         if (root instanceof Consumer)
             oIds.add(((Consumer) root).getOperatorID());
-        if (root instanceof Operator)
-            for (OpIterator c : ((Operator) root).getChildren())
+        if (root instanceof Operator) {
+            for (OpIterator c : ((Operator) root).getChildren()) {
                 collectConsumerOperatorIDs(c, oIds);
+            }
+        }
     }
 
     /**
@@ -268,6 +282,7 @@ public class Worker {
         synchronized (Worker.this.workingThread) {
             Worker.this.workingThread.notifyAll();
         }
+        //this.workingThread.run();
     }
 
     /**
@@ -319,7 +334,6 @@ public class Worker {
                     + " to Operator: " + data.getOperatorID());
         LinkedBlockingQueue<ExchangeMessage> q = null;
         q = Worker.this.inBuffer.get(data.getOperatorID());
-
         q.offer(data);
     }
 
@@ -435,9 +449,9 @@ public class Worker {
         public void start() {
             try {
                 timer.schedule(this, (long) (Math.random() * 3000) + 5000, // initial
-                        // delay
+                                                                           // delay
                         (long) (Math.random() * 2000) + 1000); // subsequent
-                // rate
+                                                               // rate
             } catch (IllegalStateException e) {// already get canceled, ignore
             }
         }

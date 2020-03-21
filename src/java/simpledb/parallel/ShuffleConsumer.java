@@ -30,7 +30,7 @@ public class ShuffleConsumer extends Consumer {
     private transient ArrayList<TupleBag> innerBuffer;
     private TupleDesc td;
     private final BitSet workerEOS;
-    private  HashMap<String, Integer> workerIdToIndex;
+    private final HashMap<String, Integer> workerIdToIndex;
 
     public String getName() {
         return "shuffle_c";
@@ -48,21 +48,20 @@ public class ShuffleConsumer extends Consumer {
         this.workers = workers;
         this.workerIdToIndex = new HashMap<String, Integer>();
         this.workerEOS = new BitSet(workers.length);
-        int i = 0;
-        for(;i<workers.length;i++) {
-            this.workerIdToIndex.put(workers[i].getId(),i);
+        int idx = 0;
+        for(SocketInfo worker : workers) {
+            this.workerIdToIndex.put(worker.getId(), idx++);
         }
     }
 
     @Override
     public void open() throws DbException, TransactionAbortedException {
-        super.open();
         this.tuples = null;
         this.innerBuffer = new ArrayList<TupleBag>();
         this.innerBufferIndex = 0;
-        if (this.child != null){
+        if (this.child != null)
             this.child.open();
-        }
+        super.open();
     }
 
     @Override
@@ -79,17 +78,14 @@ public class ShuffleConsumer extends Consumer {
         this.innerBufferIndex = -1;
         this.innerBuffer = null;
         this.workerEOS.clear();
-        if (child != null) {
-            child.close();
-        }
     }
 
     @Override
     public TupleDesc getTupleDesc() {
-        if (this.child != null) {
+        if (this.child != null)
             return this.child.getTupleDesc();
-        }
-        return this.td;
+        else
+            return this.td;
     }
 
     /**
@@ -102,19 +98,19 @@ public class ShuffleConsumer extends Consumer {
      *         of file message.
      */
     Iterator<Tuple> getTuples() throws InterruptedException {
-        TupleBag tuplebag = null;
+        TupleBag tb = null;
         if (this.innerBufferIndex < this.innerBuffer.size()) {
             return this.innerBuffer.get(this.innerBufferIndex++).iterator();
         }
 
         while (this.workerEOS.nextClearBit(0) < this.workers.length) {
-            tuplebag = (TupleBag)this.take(-1);
-            if (tuplebag.isEos()) {
-                this.workerEOS.set(workerIdToIndex.get(tuplebag.getWorkerID()));
+            tb = (TupleBag)this.take(-1);
+            if (tb.isEos()) {
+                this.workerEOS.set(this.workerIdToIndex.get(tb.getWorkerID()));
             } else {
-                innerBuffer.add(tuplebag);
+                innerBuffer.add(tb);
                 this.innerBufferIndex++;
-                return tuplebag.iterator();
+                return tb.iterator();
             }
         }
         // have received all the eos message from all the workers
